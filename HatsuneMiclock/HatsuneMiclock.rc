@@ -1,0 +1,297 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// 日本語 resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_JPN)
+#ifdef _WIN32
+LANGUAGE LANG_JAPANESE, SUBLANG_DEFAULT
+#pragma code_page(932)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_MIKUBMP             BITMAP                  "D:\\miku\\miku_bonus_files\\miku_sd.bmp"
+IDB_BOARD               BITMAP                  "D:\\miku\\miku_bonus_files\\clockboard.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// WAVE
+//
+
+IDR_HOUR00              WAVE                    "D:\\miku\\clock\\0hour.wav"
+IDR_HOUR01              WAVE                    "D:\\miku\\clock\\1hour.wav"
+IDR_HOUR02              WAVE                    "D:\\miku\\clock\\2hour.wav"
+IDR_HOUR03              WAVE                    "D:\\miku\\clock\\3hour.wav"
+IDR_HOUR04              WAVE                    "D:\\miku\\clock\\4hour.wav"
+IDR_HOUR05              WAVE                    "D:\\miku\\clock\\5hour.wav"
+IDR_HOUR06              WAVE                    "D:\\miku\\clock\\6hour.wav"
+IDR_HOUR07              WAVE                    "D:\\miku\\clock\\7hour.wav"
+IDR_HOUR08              WAVE                    "D:\\miku\\clock\\8hour.wav"
+IDR_HOUR09              WAVE                    "D:\\miku\\clock\\9hour.wav"
+IDR_HOUR10              WAVE                    "D:\\miku\\clock\\10hour.wav"
+IDR_HOUR11              WAVE                    "D:\\miku\\clock\\11hour.wav"
+IDR_HOUR12              WAVE                    "D:\\miku\\clock\\12hour.wav"
+IDR_HOUR13              WAVE                    "D:\\miku\\clock\\13hour.wav"
+IDR_HOUR14              WAVE                    "D:\\miku\\clock\\14hour.wav"
+IDR_HOUR15              WAVE                    "D:\\miku\\clock\\15hour.wav"
+IDR_HOUR16              WAVE                    "D:\\miku\\clock\\16hour.wav"
+IDR_HOUR17              WAVE                    "D:\\miku\\clock\\17hour.wav"
+IDR_HOUR18              WAVE                    "D:\\miku\\clock\\18hour.wav"
+IDR_HOUR19              WAVE                    "D:\\miku\\clock\\19hour.wav"
+IDR_HOUR20              WAVE                    "D:\\miku\\clock\\20hour.wav"
+IDR_HOUR21              WAVE                    "D:\\miku\\clock\\21hour.wav"
+IDR_HOUR22              WAVE                    "D:\\miku\\clock\\22hour.wav"
+IDR_HOUR23              WAVE                    "D:\\miku\\clock\\23hour.wav"
+IDR_MIN01               WAVE                    "D:\\miku\\clock\\1min.wav"
+IDR_MIN02               WAVE                    "D:\\miku\\clock\\2min.wav"
+IDR_MIN03               WAVE                    "D:\\miku\\clock\\3min.wav"
+IDR_MIN04               WAVE                    "D:\\miku\\clock\\4min.wav"
+IDR_MIN05               WAVE                    "D:\\miku\\clock\\5min.wav"
+IDR_MIN06               WAVE                    "D:\\miku\\clock\\6min.wav"
+IDR_MIN07               WAVE                    "D:\\miku\\clock\\7min.wav"
+IDR_MIN08               WAVE                    "D:\\miku\\clock\\8min.wav"
+IDR_MIN09               WAVE                    "D:\\miku\\clock\\9min.wav"
+IDR_MIN10               WAVE                    "D:\\miku\\clock\\10min.wav"
+IDR_MIN11               WAVE                    "D:\\miku\\clock\\11min.wav"
+IDR_MIN12               WAVE                    "D:\\miku\\clock\\12min.wav"
+IDR_MIN13               WAVE                    "D:\\miku\\clock\\13min.wav"
+IDR_MIN14               WAVE                    "D:\\miku\\clock\\14min.wav"
+IDR_MIN15               WAVE                    "D:\\miku\\clock\\15min.wav"
+IDR_MIN16               WAVE                    "D:\\miku\\clock\\16min.wav"
+IDR_MIN17               WAVE                    "D:\\miku\\clock\\17min.wav"
+IDR_MIN18               WAVE                    "D:\\miku\\clock\\18min.wav"
+IDR_MIN19               WAVE                    "D:\\miku\\clock\\19min.wav"
+IDR_MIN20               WAVE                    "D:\\miku\\clock\\20min.wav"
+IDR_MIN21               WAVE                    "D:\\miku\\clock\\21min.wav"
+IDR_MIN22               WAVE                    "D:\\miku\\clock\\22min.wav"
+IDR_MIN23               WAVE                    "D:\\miku\\clock\\23min.wav"
+IDR_MIN25               WAVE                    "D:\\miku\\clock\\25min.wav"
+IDR_MIN27               WAVE                    "D:\\miku\\clock\\27min.wav"
+IDR_MIN29               WAVE                    "D:\\miku\\clock\\29min.wav"
+IDR_MIN31               WAVE                    "D:\\miku\\clock\\31min.wav"
+IDR_MIN33               WAVE                    "D:\\miku\\clock\\33min.wav"
+IDR_MIN35               WAVE                    "D:\\miku\\clock\\35min.wav"
+IDR_MIN37               WAVE                    "D:\\miku\\clock\\37min.wav"
+IDR_MIN39               WAVE                    "D:\\miku\\clock\\39min.wav"
+IDR_MIN41               WAVE                    "D:\\miku\\clock\\41min.wav"
+IDR_MIN43               WAVE                    "D:\\miku\\clock\\43min.wav"
+IDR_MIN45               WAVE                    "D:\\miku\\clock\\45min.wav"
+IDR_MIN47               WAVE                    "D:\\miku\\clock\\47min.wav"
+IDR_MIN49               WAVE                    "D:\\miku\\clock\\49min.wav"
+IDR_MIN51               WAVE                    "D:\\miku\\clock\\51min.wav"
+IDR_MIN53               WAVE                    "D:\\miku\\clock\\53min.wav"
+IDR_MIN55               WAVE                    "D:\\miku\\clock\\55min.wav"
+IDR_MIN57               WAVE                    "D:\\miku\\clock\\57min.wav"
+IDR_MIN59               WAVE                    "D:\\miku\\clock\\59min.wav"
+IDR_MIN00               WAVE                    "D:\\miku\\clock\\just.wav"
+IDR_MIN24               WAVE                    "D:\\miku\\clock\\24min.wav"
+IDR_MIN26               WAVE                    "D:\\miku\\clock\\26min.wav"
+IDR_MIN28               WAVE                    "D:\\miku\\clock\\28min.wav"
+IDR_MIN30               WAVE                    "D:\\miku\\clock\\30min.wav"
+IDR_MIN32               WAVE                    "D:\\miku\\clock\\32min.wav"
+IDR_MIN34               WAVE                    "D:\\miku\\clock\\34min.wav"
+IDR_MIN36               WAVE                    "D:\\miku\\clock\\36min.wav"
+IDR_MIN38               WAVE                    "D:\\miku\\clock\\38min.wav"
+IDR_MIN40               WAVE                    "D:\\miku\\clock\\40min.wav"
+IDR_MIN42               WAVE                    "D:\\miku\\clock\\42min.wav"
+IDR_MIN44               WAVE                    "D:\\miku\\clock\\44min.wav"
+IDR_MIN46               WAVE                    "D:\\miku\\clock\\46min.wav"
+IDR_MIN48               WAVE                    "D:\\miku\\clock\\48min.wav"
+IDR_MIN50               WAVE                    "D:\\miku\\clock\\50min.wav"
+IDR_MIN52               WAVE                    "D:\\miku\\clock\\52min.wav"
+IDR_MIN54               WAVE                    "D:\\miku\\clock\\54min.wav"
+IDR_MIN56               WAVE                    "D:\\miku\\clock\\56min.wav"
+IDR_MIN58               WAVE                    "D:\\miku\\clock\\58min.wav"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_CONTEXTMENU MENU 
+BEGIN
+    POPUP "0"
+    BEGIN
+        MENUITEM "いま何時？",                       ID_BTN_WHATTIMEISITNOW
+        MENUITEM SEPARATOR
+        MENUITEM "バージョン情報...(&A)",              ID_BTN_ABOUT
+        MENUITEM "設定...(&S)",                   ID_BTN_SETTING
+        MENUITEM SEPARATOR
+        MENUITEM "終了(&Q)",                      ID_BTN_QUIT
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_ABOUT_DIALOG, DIALOG
+    BEGIN
+        RIGHTMARGIN, 195
+    END
+
+    IDD_SETTING_DIALOG, DIALOG
+    BEGIN
+        RIGHTMARGIN, 192
+        BOTTOMMARGIN, 143
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_ABOUT_DIALOG DIALOGEX 0, 0, 207, 127
+STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "バージョン情報"
+FONT 9, "MS UI Gothic", 400, 0, 0x0
+BEGIN
+    PUSHBUTTON      "OK",IDYES,82,101,41,20
+    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.1",IDC_STATIC,40,17,127,8
+    LTEXT           "Programmed by あまの",IDC_STATIC,40,33,65,8
+    LTEXT           "「初音ミク」はクリプトン・フューチャー・メディア株式会社の著作物です。\n(C) Crypton Future Media, Inc.",IDC_STATIC,10,62,187,19
+END
+
+IDD_SETTING_DIALOG DIALOGEX 0, 0, 195, 146
+STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "設定"
+FONT 9, "MS UI Gothic", 400, 0, 0x0
+BEGIN
+    GROUPBOX        "表示設定",IDC_GRP_DISPLAY,11,12,81,95
+    CONTROL         "常に最前面に表示",IDC_CHK_TOPMOST,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,31,67,10
+    CONTROL         "12時制で表示",IDC_CHK_AMPM,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,48,56,10
+    CONTROL         "半透明で表示",IDC_CHK_TRANSPARENCY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,19,65,56,10
+    EDITTEXT        IDC_EDIT_TRANSPARENCY,44,81,30,12,ES_AUTOHSCROLL | ES_NUMBER
+    LTEXT           "α(%)",IDC_STATIC,27,83,16,8
+    GROUPBOX        "音声設定",IDC_STATIC,101,12,81,75
+    CONTROL         "1分ごとに喋る",IDC_SPEAK_EVERYMIN,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,110,31,53,10
+    CONTROL         "1時間ごとに喋る",IDC_SPEAK_EVERYHOUR,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,110,48,60,10
+    CONTROL         "喋らない",IDC_NOSPEAK,"Button",BS_AUTORADIOBUTTON | WS_TABSTOP,110,65,39,10
+    PUSHBUTTON      "OK",IDYES,93,119,41,18
+    PUSHBUTTON      "キャンセル",IDCANCEL,141,119,41,18
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 0,0,0,1
+ PRODUCTVERSION 0,0,0,1
+ FILEFLAGSMASK 0x17L
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "041104b0"
+        BEGIN
+            VALUE "CompanyName", "Miku39.jp"
+            VALUE "FileDescription", "初音ミクが時計になってくれたよ"
+            VALUE "FileVersion", "0, 0, 0, 1"
+            VALUE "InternalName", "HatsuneMiclock"
+            VALUE "LegalCopyright", "Copyright (C) 2009"
+            VALUE "OriginalFilename", "HatsuneMiclock.exe"
+            VALUE "ProductName", "Hatsune Miclock"
+            VALUE "ProductVersion", "0, 0, 0, 1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x411, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE 
+BEGIN
+    IDS_FONT                "System"
+    IDS_FONTSIZE            "12"
+    IDS_TEXT_XPOSITION      "70"
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_TEXT_YPOSITION      "131"
+    IDS_BOARD_XPOSITION     "60"
+    IDS_BOARD_YPOSITION     "125"
+END
+
+#endif    // 日本語 resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
