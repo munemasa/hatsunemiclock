@@ -107,7 +107,6 @@
 #define IDC_SPEAK_EVERYHOUR             1017
 #define IDC_RADIO3                      1018
 #define IDC_NOSPEAK                     1018
-#define IDC_SYSLINK1                    1021
 #define ID_MAIN_40001                   40001
 #define ID_40002                        40002
 #define ID_40003                        40003
@@ -125,8 +124,8 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        193
-#define _APS_NEXT_COMMAND_VALUE         40013
+#define _APS_NEXT_RESOURCE_VALUE        194
+#define _APS_NEXT_COMMAND_VALUE         40015
 #define _APS_NEXT_CONTROL_VALUE         1022
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

@@ -245,7 +245,7 @@ BEGIN
         BLOCK "041104b0"
         BEGIN
             VALUE "CompanyName", "Miku39.jp"
-            VALUE "FileDescription", "初音ミクが時計になってくれたよ"
+            VALUE "FileDescription", "初音ミクロック"
             VALUE "FileVersion", "0, 0, 0, 1"
             VALUE "InternalName", "HatsuneMiclock"
             VALUE "LegalCopyright", "Copyright (C) 2009"

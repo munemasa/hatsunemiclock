@@ -33,6 +33,8 @@ struct T_MIKU_CONFIG {
 
 struct T_MIKU_CLOCK {
 	HINSTANCE	hInst;
+	HANDLE		sayevent;
+	DWORD		thid;
 	tWindow		*pWindow;
 
 	HBITMAP     hMiku;	// handle of Miku image.
@@ -53,6 +55,9 @@ struct T_MIKU_CLOCK {
 
 	bool		inSpeak;	// now in speaking.
 } g_miku;
+
+
+DWORD WINAPI thMikuSaysNowTime(LPVOID v);
 
 
 int dprintf(WCHAR*format,...)
@@ -89,6 +94,15 @@ void InitMikuClock()
 	LoadString( GetModuleHandle(NULL), IDS_BOARD_YPOSITION,
                 buf, sizeof(BUF_STRING_SIZE) );
 	g_miku.by = _wtoi(buf);
+
+	g_miku.sayevent = CreateEvent( NULL, FALSE, FALSE, L"Mik39.jp.MikuSayEvent" );
+
+	CreateThread( NULL, 0, thMikuSaysNowTime, NULL, 0, &g_miku.thid );
+}
+
+void ExitMikuClock()
+{
+	CloseHandle( g_miku.sayevent );
 }
 
 void SaveToRegistory()
@@ -110,60 +124,54 @@ void SaveToRegistory()
 	RegCloseKey( hkey );
 }
 
+LSTATUS ReadRegistoryDW( HKEY hkey, WCHAR*entry, DWORD*data )
+{
+	DWORD type, size;
+	type = REG_DWORD;
+	size = sizeof(DWORD);
+	return RegQueryValueEx( hkey, entry, 0, &type, (BYTE*)data, &size );
+}
+
+
 void LoadFromRegistory()
 {
 	HKEY hkey;
 	LONG err;
-	DWORD type, size;
 
 	RegCreateKeyEx( HKEY_CURRENT_USER, REG_SUBKEY, 0, L"", REG_OPTION_NON_VOLATILE, KEY_READ, NULL,	&hkey, NULL );
 
-	type = REG_DWORD;
-	size = sizeof(g_config.winx);
-	err = RegQueryValueEx( hkey, L"XPos", 0, &type, (BYTE*)&g_config.winx, &size );
+	err = ReadRegistoryDW( hkey, L"XPos", &g_config.winx );
 	if( err!=ERROR_SUCCESS ){
 		g_config.winx = 0;
 	}
 
-	type = REG_DWORD;
-	size = sizeof(g_config.winy);
-	err = RegQueryValueEx( hkey, L"YPos", 0, &type, (BYTE*)&g_config.winy, &size );
+	err = ReadRegistoryDW( hkey, L"YPos", &g_config.winy );
 	if( err!=ERROR_SUCCESS ){
 		g_config.winy = 0;
 	}
 
-	type = REG_DWORD;
-	size = sizeof(g_config.isTopMost);
-	err = RegQueryValueEx( hkey, L"TopMost", 0, &type, (BYTE*)&g_config.isTopMost, &size );
+	err = ReadRegistoryDW( hkey, L"TopMost", &g_config.isTopMost );
 	if( err!=ERROR_SUCCESS ){
 		g_config.isTopMost = FALSE;
 	}
 
-	type = REG_DWORD;
-	size = sizeof(g_config.trans_rate);
-	err = RegQueryValueEx( hkey, L"TransparencyRate", 0, &type, (BYTE*)&g_config.trans_rate, &size );
+	err = ReadRegistoryDW( hkey, L"TransparencyRate", &g_config.trans_rate );
 	if( err!=ERROR_SUCCESS ){
 		g_config.isTransparent = FALSE;
 		g_config.trans_rate = 255;
 	}
 
-	type = REG_DWORD;
-	size = sizeof(g_config.isTransparent);
-	err = RegQueryValueEx( hkey, L"Transparent", 0, &type, (BYTE*)&g_config.isTransparent, &size );
+	err = ReadRegistoryDW( hkey, L"Transparent", &g_config.isTransparent );
 	if( err!=ERROR_SUCCESS ){
 		g_config.isTransparent = FALSE;
 	}
 
-	type = REG_DWORD;
-	size = sizeof(g_config.is12_24);
-	err = RegQueryValueEx( hkey, L"DisplayAMPM", 0, &type, (BYTE*)&g_config.is12_24, &size );
+	err = ReadRegistoryDW( hkey, L"DisplayAMPM", &g_config.is12_24 );
 	if( err!=ERROR_SUCCESS ){
 		g_config.is12_24 = FALSE;
 	}
 
-	type = REG_DWORD;
-	size = sizeof(g_config.speak_type);
-	err = RegQueryValueEx( hkey, L"SpeakType", 0, &type, (BYTE*)&g_config.speak_type, &size );
+	err = ReadRegistoryDW( hkey, L"SpeakType", &g_config.speak_type );
 	if( err!=ERROR_SUCCESS ){
 		g_config.speak_type = 0;
 	}
@@ -263,13 +271,14 @@ void UpdateMikuClock()
 
 DWORD WINAPI thMikuSaysNowTime(LPVOID v)
 {
-	int hour,min;
-	int harray[24] = {
+	volatile int hour;
+	volatile int min;
+	static int harray[24] = {
 		IDR_HOUR00, IDR_HOUR01, IDR_HOUR02, IDR_HOUR03, IDR_HOUR04, IDR_HOUR05,	IDR_HOUR06, IDR_HOUR07, IDR_HOUR08, IDR_HOUR09,
 		IDR_HOUR10, IDR_HOUR11,	IDR_HOUR12, IDR_HOUR13, IDR_HOUR14, IDR_HOUR15, IDR_HOUR16, IDR_HOUR17,	IDR_HOUR18, IDR_HOUR19,
 		IDR_HOUR20, IDR_HOUR21, IDR_HOUR22, IDR_HOUR23,
 	};
-	int marray[60] = {
+	static int marray[60] = {
 		IDR_MIN00, IDR_MIN01, IDR_MIN02, IDR_MIN03, IDR_MIN04, IDR_MIN05, IDR_MIN06, IDR_MIN07, IDR_MIN08, IDR_MIN09,
 		IDR_MIN10, IDR_MIN11, IDR_MIN12, IDR_MIN13, IDR_MIN14, IDR_MIN15, IDR_MIN16, IDR_MIN17, IDR_MIN18, IDR_MIN19,
 		IDR_MIN20, IDR_MIN21, IDR_MIN22, IDR_MIN23, IDR_MIN24, IDR_MIN25, IDR_MIN26, IDR_MIN27, IDR_MIN28, IDR_MIN29,
@@ -277,25 +286,29 @@ DWORD WINAPI thMikuSaysNowTime(LPVOID v)
 		IDR_MIN40, IDR_MIN41, IDR_MIN42, IDR_MIN43, IDR_MIN44, IDR_MIN45, IDR_MIN46, IDR_MIN47, IDR_MIN48, IDR_MIN49,
 		IDR_MIN50, IDR_MIN51, IDR_MIN52, IDR_MIN53, IDR_MIN54, IDR_MIN55, IDR_MIN56, IDR_MIN57, IDR_MIN58, IDR_MIN59,
 	};
-	hour = g_miku.hour;
-	min = g_miku.min;
-	if( hour>=0 && hour<24 && min>=0 && min<60 ){
-		g_miku.inSpeak = true;
-		if( g_config.is12_24 ){
-			hour %= 12;
+
+	while(1){
+		WaitForSingleObject( g_miku.sayevent, INFINITE );
+
+		hour = g_miku.hour;
+		min = g_miku.min;
+		if( hour>=0 && hour<24 && min>=0 && min<60 ){
+			g_miku.inSpeak = true;
+			if( g_config.is12_24 ){
+				hour %= 12;
+			}
+			PlaySound(MAKEINTRESOURCE(harray[hour]), GetModuleHandle(NULL), SND_RESOURCE);
+			PlaySound(MAKEINTRESOURCE(marray[min]), GetModuleHandle(NULL), SND_RESOURCE);
+			g_miku.inSpeak = false;
 		}
-		PlaySound(MAKEINTRESOURCE(harray[hour]), GetModuleHandle(NULL), SND_RESOURCE);
-		PlaySound(MAKEINTRESOURCE(marray[min]), GetModuleHandle(NULL), SND_RESOURCE);
-		g_miku.inSpeak = false;
 	}
 	ExitThread(0);
 }
 
 void SpeakMiku()
 {
-	DWORD thid;
 	if( !g_miku.inSpeak ){
-		CreateThread( NULL, 0, thMikuSaysNowTime, NULL, 0, &thid );
+		SetEvent( g_miku.sayevent );
 	}
 }
 
@@ -318,8 +331,7 @@ void CheckMikuSpeak(HWND hwnd)
 
 	if( g_miku.oldmin != g_miku.min && b ) {
         if( !g_miku.inSpeak ){
-            DWORD thid;
-            CreateThread( NULL, 0, thMikuSaysNowTime, NULL, 0, &thid );
+			SetEvent( g_miku.sayevent );
         }
 	}
 }
@@ -620,6 +632,8 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
             DispatchMessage(&msg); 
         }
     }
+
+	ExitMikuClock();
 
 	delete g_miku.pWindow;
 	return (int)msg.wParam;
