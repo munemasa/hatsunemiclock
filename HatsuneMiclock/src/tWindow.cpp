@@ -1,7 +1,7 @@
 #include "tWindow.h"
 
 tWindow::tWindow(const WCHAR *title, int x, int y, int w, int h,
-                 WNDPROC wndproc, HINSTANCE hinst)
+                 DWORD style, WNDPROC wndproc, HINSTANCE hinst)
 {
     this->x = x;
     this->y = y;
@@ -9,8 +9,7 @@ tWindow::tWindow(const WCHAR *title, int x, int y, int w, int h,
     this->h = h;
     this->m_title = title;
 
-	m_style = WS_POPUP | WS_SYSMENU | WS_MINIMIZEBOX;
-	//m_style = WS_OVERLAPPEDWINDOW & ~WS_CAPTION & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX;
+	m_style = style;
 
     m_wcex.cbSize = sizeof( WNDCLASSEX );
     m_wcex.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
@@ -35,6 +34,7 @@ tWindow::tWindow(const WCHAR *title, int x, int y, int w, int h,
     m_hwnd = CreateWindowEx( WS_EX_LAYERED, title, title, m_style,
 							 CW_USEDEFAULT, CW_USEDEFAULT, rc.right-rc.left, rc.bottom-rc.top, NULL, NULL, hinst,
 							 NULL );
+	setTransparency( 255 );
 }
 
 int tWindow::moveWindow(int screenx, int screeny )

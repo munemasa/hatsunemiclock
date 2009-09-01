@@ -607,7 +607,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	UpdateMikuClock();
 
 	g_miku.hInst = hInstance;
-	g_miku.pWindow = new tWindow( L"Hatsune Miclock", 100, 100, 256, 256, WndProc, hInstance );
+	g_miku.pWindow = new tWindow( L"Hatsune Miclock", 100, 100, 256, 256, WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX, WndProc, hInstance );
 	g_miku.pWindow->resizeWindow( g_miku.w, g_miku.h );
 	SetMikuWindowRegion( g_miku.pWindow->getWindowHandle() );
 
