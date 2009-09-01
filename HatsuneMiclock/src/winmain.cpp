@@ -10,14 +10,17 @@
 #include <mmsystem.h>
 
 #include "tWindow.h"
-
+#include "iTunesLib.h"
 #include "../resource.h"
 
-#pragma comment(lib,"winmm.lib")
-#pragma comment(lib,"comctl32.lib")
+#pragma comment(lib,"winmm.lib")		// windows multimedia
+#pragma comment(lib,"comctl32.lib")		// common control
 
+
+#define APP_TITLE			 L"Hatsune Miclock"
 #define BUF_STRING_SIZE		(4096)		// number of charactors.
 #define REG_SUBKEY			L"Software\\Miku39.jp\\HatsuneMiclock"
+
 
 struct T_MIKU_CONFIG {
 	DWORD winx, winy;		// position of window.
@@ -29,7 +32,6 @@ struct T_MIKU_CONFIG {
 
 	DWORD speak_type;	// 0:every min, 1:every hour, 2:no speak
 }g_config;
-
 
 struct T_MIKU_CLOCK {
 	HINSTANCE	hInst;
@@ -54,10 +56,13 @@ struct T_MIKU_CLOCK {
 	int			dragStartX, dragStartY;
 
 	bool		inSpeak;	// now in speaking.
+
+	IiTunes		*iTunes;
 } g_miku;
 
 
 DWORD WINAPI thMikuSaysNowTime(LPVOID v);
+void SetWindowTitleToMusicName( HWND hwnd );
 
 
 int dprintf(WCHAR*format,...)
@@ -71,7 +76,9 @@ int dprintf(WCHAR*format,...)
 	return r;
 }
 
-
+/** 初音ミクロックの初期化.
+ * ライブラリ、スレッド、ワークの初期化を行う.
+ */
 void InitMikuClock()
 {
     // read some parameters from resource.
@@ -95,16 +102,90 @@ void InitMikuClock()
                 buf, sizeof(BUF_STRING_SIZE) );
 	g_miku.by = _wtoi(buf);
 
+	// speaking event
 	g_miku.sayevent = CreateEvent( NULL, FALSE, FALSE, L"Mik39.jp.MikuSayEvent" );
 
+	// speaking thread
 	CreateThread( NULL, 0, thMikuSaysNowTime, NULL, 0, &g_miku.thid );
+
+	// COM
+	CoInitializeEx( NULL, COINIT_MULTITHREADED );
+
+	// common control
+	INITCOMMONCONTROLSEX ic;
+	ic.dwSize = sizeof(INITCOMMONCONTROLSEX);
+	ic.dwICC = ICC_UPDOWN_CLASS;// | ICC_LINK_CLASS;
+	InitCommonControlsEx(&ic); 
 }
 
+/** 初音ミクロックの後片付け.
+ * iTunesから切断したり.
+ */
 void ExitMikuClock()
 {
+	DisconnectITunesEvent();
+	if( g_miku.iTunes ) g_miku.iTunes->Release();
+
 	CloseHandle( g_miku.sayevent );
+	CoUninitialize();
 }
 
+/** リソースからミク画像をロードする.
+ */
+void LoadMikuImage()
+{
+    g_miku.hMiku = (HBITMAP)LoadImage( GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_MIKUBMP), IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR );
+	g_miku.hBoard = (HBITMAP)LoadImage( GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_BOARD), IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR );
+
+	BITMAP bmp;
+	GetObject( g_miku.hMiku, sizeof(bmp), &bmp );
+	dprintf( L"w:%d,h:%d\n",bmp.bmWidth, bmp.bmHeight );
+	g_miku.w = bmp.bmWidth;
+	g_miku.h = bmp.bmHeight;
+
+	GetObject( g_miku.hBoard, sizeof(bmp), &bmp );
+	g_miku.bw = bmp.bmWidth;
+	g_miku.bh = bmp.bmHeight;
+}
+
+/** ウィンドウリージョンを画像の型にする.
+ * this must be called after LoadMikuImage() function.
+ */
+void SetMikuWindowRegion(HWND hwnd)
+{
+	HDC hdc;
+	HDC regiondc;
+
+	hdc = GetDC( hwnd );
+	regiondc = CreateCompatibleDC( hdc );
+	SelectObject( regiondc, g_miku.hMiku );
+
+	HRGN rgn = CreateRectRgn( 0, 0, 0, 0 );
+	for(int y=0; y<g_miku.h; y++){
+		for(int x=0; x<g_miku.w; x++){
+			COLORREF col;
+			col = GetPixel( regiondc, x, y );
+			if( col!=0x00ffffff ){
+				HRGN r = CreateRectRgn( x, y, x+1, y+1 );
+				CombineRgn( rgn, rgn, r, RGN_OR );
+				DeleteObject( r );
+			}
+		}
+	}
+	DeleteObject( regiondc );
+
+	// add clock board region
+	HRGN r = CreateRectRgn( g_miku.bx, g_miku.by, g_miku.bx+g_miku.bw, g_miku.by+g_miku.bh );
+	CombineRgn( rgn, rgn, r, RGN_OR );
+	DeleteObject( r );
+
+	SetWindowRgn( hwnd, rgn, TRUE );
+
+	ReleaseDC( hwnd, hdc );
+}
+
+/** 設定項目をレジストリに保存する.
+ */
 void SaveToRegistory()
 {
 	HKEY hkey;
@@ -124,6 +205,7 @@ void SaveToRegistory()
 	RegCloseKey( hkey );
 }
 
+/// レジストリの読み込み.
 LSTATUS ReadRegistoryDW( HKEY hkey, WCHAR*entry, DWORD*data )
 {
 	DWORD type, size;
@@ -132,7 +214,8 @@ LSTATUS ReadRegistoryDW( HKEY hkey, WCHAR*entry, DWORD*data )
 	return RegQueryValueEx( hkey, entry, 0, &type, (BYTE*)data, &size );
 }
 
-
+/** レジストリから設定項目をロードする.
+ */
 void LoadFromRegistory()
 {
 	HKEY hkey;
@@ -184,52 +267,24 @@ void LoadFromRegistory()
 	if( (int)g_config.winy < -g_miku.h ) g_config.winy = 0;
 }
 
-// this must be called after LoadMikuImage() function.
-void SetMikuWindowRegion(HWND hwnd)
-{
-	HDC hdc;
-	HDC regiondc;
-
-	hdc = GetDC( hwnd );
-	regiondc = CreateCompatibleDC( hdc );
-	SelectObject( regiondc, g_miku.hMiku );
-
-	HRGN rgn = CreateRectRgn( 0, 0, 0, 0 );
-	for(int y=0; y<g_miku.h; y++){
-		for(int x=0; x<g_miku.w; x++){
-			COLORREF col;
-			col = GetPixel( regiondc, x, y );
-			if( col!=0x00ffffff ){
-				HRGN r = CreateRectRgn( x, y, x+1, y+1 );
-				CombineRgn( rgn, rgn, r, RGN_OR );
-				DeleteObject( r );
-			}
-		}
-	}
-	DeleteObject( regiondc );
-
-	// add clock board region
-	HRGN r = CreateRectRgn( g_miku.bx, g_miku.by, g_miku.bx+g_miku.bw, g_miku.by+g_miku.bh );
-	CombineRgn( rgn, rgn, r, RGN_OR );
-	DeleteObject( r );
-
-	SetWindowRgn( hwnd, rgn, TRUE );
-
-	ReleaseDC( hwnd, hdc );
-}
-
-// Draw Miku in hdc.
+/** ミクを描く.
+ * @param hdc 描画先のデバイスコンテキスト
+ */
 void DrawMiku(HDC hdc)
 {
 	HDC dc;
 
+	// create device
 	dc = CreateCompatibleDC( hdc );
-	SelectObject(dc, g_miku.hMiku);
-	BitBlt(hdc, 0, 0, g_miku.w, g_miku.h, dc, 0, 0, SRCCOPY);	// draw Miku.
+	// draw Miku
+	SelectObject( dc, g_miku.hMiku );
+	BitBlt( hdc, 0, 0, g_miku.w, g_miku.h, dc, 0, 0, SRCCOPY );
 
+	// draw clock board
 	SelectObject(dc, g_miku.hBoard);
-	BitBlt(hdc, g_miku.bx, g_miku.by, g_miku.bw, g_miku.bh, dc, 0, 0, SRCCOPY); // draw clock board.
-	DeleteDC(dc);
+	BitBlt( hdc, g_miku.bx, g_miku.by, g_miku.bw, g_miku.bh, dc, 0, 0, SRCCOPY );
+	// delete device
+	DeleteDC( dc );
 
 	WCHAR timestr[BUF_STRING_SIZE];
 	if( g_config.is12_24 ){
@@ -241,23 +296,21 @@ void DrawMiku(HDC hdc)
 	TextOut(hdc, g_miku.fx, g_miku.fy, timestr, wcslen(timestr) );
 }
 
-void LoadMikuImage()
+/** iTunesを探して接続する.
+ * @param hwnd iTunesEventを受けとるウィンドウ
+ */
+void FindITunes( HWND hwnd )
 {
-    g_miku.hMiku = (HBITMAP)LoadImage( GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_MIKUBMP), IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR );
-	g_miku.hBoard = (HBITMAP)LoadImage( GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_BOARD), IMAGE_BITMAP, 0, 0, LR_DEFAULTCOLOR );
-
-	BITMAP bmp;
-	GetObject( g_miku.hMiku, sizeof(bmp), &bmp );
-	dprintf( L"w:%d,h:%d\n",bmp.bmWidth, bmp.bmHeight );
-	g_miku.w = bmp.bmWidth;
-	g_miku.h = bmp.bmHeight;
-
-	GetObject( g_miku.hBoard, sizeof(bmp), &bmp );
-	g_miku.bw = bmp.bmWidth;
-	g_miku.bh = bmp.bmHeight;
+	if( g_miku.iTunes==NULL && FindITunes() ){
+		CreateITunesCOM( &g_miku.iTunes, hwnd );
+		ConnectITunesEvent( g_miku.iTunes );
+		SetWindowTitleToMusicName( hwnd );
+	}
 }
 
-// update current time.
+
+/** 時刻ワークの更新.
+ */
 void UpdateMikuClock()
 {
 	SYSTEMTIME t;
@@ -269,6 +322,8 @@ void UpdateMikuClock()
 	g_miku.sec = t.wSecond;
 }
 
+/** 音声再生スレッド.
+ */
 DWORD WINAPI thMikuSaysNowTime(LPVOID v)
 {
 	volatile int hour;
@@ -297,14 +352,16 @@ DWORD WINAPI thMikuSaysNowTime(LPVOID v)
 			if( g_config.is12_24 ){
 				hour %= 12;
 			}
-			PlaySound(MAKEINTRESOURCE(harray[hour]), GetModuleHandle(NULL), SND_RESOURCE);
-			PlaySound(MAKEINTRESOURCE(marray[min]), GetModuleHandle(NULL), SND_RESOURCE);
+			PlaySound( MAKEINTRESOURCE(harray[hour]), GetModuleHandle(NULL), SND_RESOURCE );
+			PlaySound( MAKEINTRESOURCE(marray[min]), GetModuleHandle(NULL), SND_RESOURCE );
 			g_miku.inSpeak = false;
 		}
 	}
 	ExitThread(0);
 }
 
+/** 現在時刻を喋らせる.
+ */
 void SpeakMiku()
 {
 	if( !g_miku.inSpeak ){
@@ -312,6 +369,8 @@ void SpeakMiku()
 	}
 }
 
+/** 現在時刻を喋らせるかどうかチェックする.
+ */
 void CheckMikuSpeak(HWND hwnd)
 {
 	if( g_miku.oldhour==0 && g_miku.oldmin==0 ) return;
@@ -336,6 +395,9 @@ void CheckMikuSpeak(HWND hwnd)
 	}
 }
 
+/** コンテキストメニューを表示する.
+ * @param hwnd 親ウィンドウ
+ */
 void ShowContextMenu(HWND hwnd)
 {
 	HMENU menu;
@@ -350,30 +412,106 @@ void ShowContextMenu(HWND hwnd)
 	DestroyMenu( menu );
 }
 
-
-INT_PTR CALLBACK DlgAboutProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
+/** ウィンドウタイトルを曲名に変更する.
+ */
+void SetWindowTitleToMusicName( HWND hwnd )
 {
-	switch(msg){
-	case WM_INITDIALOG:
-		return TRUE;
-
-	case WM_COMMAND:
-		switch(LOWORD(wp)){
-		case IDYES:
-			EndDialog(hDlgWnd, IDOK);
-			break;
-		default:
-			return FALSE;
+	if( g_miku.iTunes ){
+		IITTrack *iTrack;
+		g_miku.iTunes->get_CurrentTrack( &iTrack );
+		if( iTrack ){
+			BSTR name;
+			WCHAR windowname[BUF_STRING_SIZE];
+			iTrack->get_Name( &name );
+			wsprintf( windowname, L"%s::%s", name, APP_TITLE );
+			SetWindowText( hwnd, windowname );
 		}
+	}
+}
+
+/** iTunesイベントの処理.
+ */
+void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
+{
+	switch( wparam ){
+    case ITEventDatabaseChanged:
         break;
-	case WM_CLOSE:
-		PostMessage( hDlgWnd, WM_COMMAND, IDYES, 0 );
-		return TRUE;
+
+	case ITEventPlayerPlay:
+		SetWindowTitleToMusicName( hwnd );
+		break;
+
+    case ITEventPlayerStop:
+		SetWindowText( hwnd, APP_TITLE );
+        break;
+
+	case ITEventPlayerPlayingTrackChanged:
+		break;
+
+	case ITEventUserInterfaceEnabled:
+		break;
+
+	case ITEventCOMCallsDisabled:
+		break;
+
+	case ITEventCOMCallsEnabled:
+		break;
+
+	case ITEventQuitting:
+		break;
+
+	case ITEventAboutToPromptUserToQuit:
+		break;
+
+	case ITEventSoundVolumeChanged:
+		break;
 
 	default:
-		return FALSE;
+		break;
 	}
-	return TRUE;
+}
+
+/** 設定ダイアログに現状を反映させる.
+ * @param hwnd ダイアログのウィンドウハンドル
+ */
+void SetupSettingDialog( HWND hwnd )
+{
+	HWND parts;
+	parts = GetDlgItem( hwnd, IDC_CHK_TOPMOST );
+	Button_SetCheck( parts, g_config.isTopMost );
+
+	parts = GetDlgItem( hwnd, IDC_CHK_AMPM );
+	Button_SetCheck( parts, g_config.is12_24 );
+
+	parts = GetDlgItem( hwnd, IDC_CHK_TRANSPARENCY );
+	Button_SetCheck( parts, g_config.isTransparent );
+
+	// display alpha value, convert to 0-100%
+	WCHAR wstr[BUF_STRING_SIZE];
+	int rate;
+	rate = g_config.trans_rate * 100 / 255;
+	wsprintf(wstr, L"%d", rate );
+	SetDlgItemText( hwnd, IDC_EDIT_TRANSPARENCY, wstr );
+
+    HWND radio[3];
+    radio[0] = GetDlgItem( hwnd, IDC_SPEAK_EVERYMIN );
+    radio[1] = GetDlgItem( hwnd, IDC_SPEAK_EVERYHOUR );
+    radio[2] = GetDlgItem( hwnd, IDC_NOSPEAK );
+    Button_SetCheck( radio[0], 0 );
+    Button_SetCheck( radio[1], 0 );
+    Button_SetCheck( radio[2], 0 );
+	switch(g_config.speak_type){
+	case 0: // every min.
+	default:
+		Button_SetCheck( radio[0], 1 );
+		break;
+	case 1: // every hour.
+		Button_SetCheck( radio[1], 1 );
+		break;
+	case 2: //no speaking
+		Button_SetCheck( radio[2], 1 );
+		break;
+	}
 }
 
 /** 設定を適用する.
@@ -432,48 +570,32 @@ void ApplySetting(HWND hwnd)
 	SaveToRegistory();
 }
 
-/** 設定ダイアログに現状を反映させる.
- * @param hwnd ダイアログのウィンドウハンドル
- */
-void SetupSettingDialog( HWND hwnd )
+INT_PTR CALLBACK DlgAboutProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-	HWND parts;
-	parts = GetDlgItem( hwnd, IDC_CHK_TOPMOST );
-	Button_SetCheck( parts, g_config.isTopMost );
+	switch(msg){
+	case WM_INITDIALOG:
+		return TRUE;
 
-	parts = GetDlgItem( hwnd, IDC_CHK_AMPM );
-	Button_SetCheck( parts, g_config.is12_24 );
+	case WM_COMMAND:
+		switch(LOWORD(wp)){
+		case IDYES:
+			EndDialog(hDlgWnd, IDOK);
+			break;
+		default:
+			return FALSE;
+		}
+        break;
+	case WM_CLOSE:
+		PostMessage( hDlgWnd, WM_COMMAND, IDYES, 0 );
+		return TRUE;
 
-	parts = GetDlgItem( hwnd, IDC_CHK_TRANSPARENCY );
-	Button_SetCheck( parts, g_config.isTransparent );
-
-	// display alpha value, convert to 0-100%
-	WCHAR wstr[BUF_STRING_SIZE];
-	int rate;
-	rate = g_config.trans_rate * 100 / 255;
-	wsprintf(wstr, L"%d", rate );
-	SetDlgItemText( hwnd, IDC_EDIT_TRANSPARENCY, wstr );
-
-    HWND radio[3];
-    radio[0] = GetDlgItem( hwnd, IDC_SPEAK_EVERYMIN );
-    radio[1] = GetDlgItem( hwnd, IDC_SPEAK_EVERYHOUR );
-    radio[2] = GetDlgItem( hwnd, IDC_NOSPEAK );
-    Button_SetCheck( radio[0], 0 );
-    Button_SetCheck( radio[1], 0 );
-    Button_SetCheck( radio[2], 0 );
-	switch(g_config.speak_type){
-	case 0: // every min.
 	default:
-		Button_SetCheck( radio[0], 1 );
-		break;
-	case 1: // every hour.
-		Button_SetCheck( radio[1], 1 );
-		break;
-	case 2: //no speaking
-		Button_SetCheck( radio[2], 1 );
-		break;
+		return FALSE;
 	}
+	return TRUE;
 }
+
+
 
 INT_PTR CALLBACK DlgSettingProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
@@ -514,14 +636,9 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
     HDC hdc;
 
     switch( message ){
-	case WM_CREATE:{
-		INITCOMMONCONTROLSEX ic;
-		ic.dwSize = sizeof(INITCOMMONCONTROLSEX);
-		ic.dwICC = ICC_UPDOWN_CLASS;// | ICC_LINK_CLASS;
-		InitCommonControlsEx(&ic); 
-
+	case WM_CREATE:
 		SetTimer( hWnd, 1, 1000, NULL );
-		break;}
+		break;
 
     case WM_PAINT:
         hdc = BeginPaint( hWnd, &ps );
@@ -533,6 +650,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 		UpdateMikuClock();
 		InvalidateRect( hWnd, NULL, TRUE );
 		CheckMikuSpeak( hWnd );
+		FindITunes( hWnd );
 		break;
 
 	case WM_LBUTTONDBLCLK:  // double click
@@ -593,6 +711,10 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 		}
 		break;
 
+	case WM_ITUNES:
+		ProcessITunesEvent( hWnd, wParam, lParam );
+		break;
+
 	default:
 		break;
     }
@@ -607,7 +729,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	UpdateMikuClock();
 
 	g_miku.hInst = hInstance;
-	g_miku.pWindow = new tWindow( L"Hatsune Miclock", 100, 100, 256, 256, WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX, WndProc, hInstance );
+	g_miku.pWindow = new tWindow( APP_TITLE, 100, 100, 256, 256, WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX, WndProc, hInstance );
 	g_miku.pWindow->resizeWindow( g_miku.w, g_miku.h );
 	SetMikuWindowRegion( g_miku.pWindow->getWindowHandle() );
 
