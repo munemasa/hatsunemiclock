@@ -418,6 +418,11 @@ void SetWindowTitleToMusicName( HWND hwnd )
 {
 	if( g_miku.iTunes ){
 		IITTrack *iTrack;
+		ITPlayerState playerState;
+
+		g_miku.iTunes->get_PlayerState( &playerState );
+		if( playerState==ITPlayerStateStopped ) return;
+
 		g_miku.iTunes->get_CurrentTrack( &iTrack );
 		if( iTrack ){
 			BSTR name;
@@ -597,6 +602,7 @@ INT_PTR CALLBACK DlgAboutProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 
 
 
+
 INT_PTR CALLBACK DlgSettingProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch(msg){
@@ -627,6 +633,30 @@ INT_PTR CALLBACK DlgSettingProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 		return FALSE;
 	}
 	return TRUE;
+}
+
+LRESULT ProcessContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
+{
+	switch( LOWORD(wParam) ){
+	case ID_BTN_QUIT:
+		DestroyWindow( hWnd );
+		break;
+
+	case ID_BTN_ABOUT:
+		DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_ABOUT_DIALOG), hWnd, DlgAboutProc );
+		break;
+
+	case ID_BTN_SETTING:
+		DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_SETTING_DIALOG), hWnd, DlgSettingProc );
+		break;
+
+	case ID_BTN_WHATTIMEISITNOW:
+		SpeakMiku();
+		break;
+	default:
+		break;
+	}
+	return S_OK;
 }
 
 
@@ -690,25 +720,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 
 	case WM_COMMAND:
 		// drive popup menu.
-		switch( LOWORD(wParam) ){
-		case ID_BTN_QUIT:
-			DestroyWindow( hWnd );
-			break;
-
-		case ID_BTN_ABOUT:
-			DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_ABOUT_DIALOG), hWnd, DlgAboutProc );
-			break;
-
-		case ID_BTN_SETTING:
-			DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_SETTING_DIALOG), hWnd, DlgSettingProc );
-			break;
-
-		case ID_BTN_WHATTIMEISITNOW:
-			SpeakMiku();
-			break;
-		default:
-			break;
-		}
+		ProcessContextMenu( hWnd, wParam, lParam );
 		break;
 
 	case WM_ITUNES:

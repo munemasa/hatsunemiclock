@@ -44,7 +44,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -64,7 +64,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="mylib32d.lib"
 				LinkIncremental="2"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="1"
@@ -117,7 +119,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -137,8 +139,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="mylib64d.lib"
 				OutputFile="$(OutDir)\$(ProjectName)64.exe"
 				LinkIncremental="2"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="17"
@@ -192,7 +196,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -211,8 +215,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="mylib32.lib"
 				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.2\$(ProjectName).exe"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -269,7 +275,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -288,8 +294,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="mylib64.lib"
 				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.2\$(ProjectName)64.exe"
 				LinkIncremental="1"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -328,18 +336,6 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\..\itunescomwindowssdk\iTunesCOMWindowsSDK\iTunesCOMInterface_i.c"
-				>
-			</File>
-			<File
-				RelativePath=".\src\iTunesLib.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\src\tWindow.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\src\winmain.cpp"
 				>
 			</File>
@@ -350,15 +346,7 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\src\iTunesLib.h"
-				>
-			</File>
-			<File
 				RelativePath=".\resource.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\tWindow.h"
 				>
 			</File>
 		</Filter>
