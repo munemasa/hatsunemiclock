@@ -35,6 +35,8 @@ struct T_MIKU_CONFIG {
 
 struct T_MIKU_CLOCK {
 	HINSTANCE	hInst;
+	HWND		hToolTip;
+
 	HANDLE		sayevent;
 	DWORD		thid;
 	tWindow		*pWindow;
@@ -63,6 +65,7 @@ struct T_MIKU_CLOCK {
 
 DWORD WINAPI thMikuSaysNowTime(LPVOID v);
 void SetWindowTitleToMusicName( HWND hwnd );
+void UpdateToolTipHelp( WCHAR*str );
 
 
 int dprintf(WCHAR*format,...)
@@ -114,7 +117,7 @@ void InitMikuClock()
 	// common control
 	INITCOMMONCONTROLSEX ic;
 	ic.dwSize = sizeof(INITCOMMONCONTROLSEX);
-	ic.dwICC = ICC_UPDOWN_CLASS;// | ICC_LINK_CLASS;
+	ic.dwICC = ICC_UPDOWN_CLASS | ICC_BAR_CLASSES;// | ICC_LINK_CLASS;
 	InitCommonControlsEx(&ic); 
 }
 
@@ -430,8 +433,58 @@ void SetWindowTitleToMusicName( HWND hwnd )
 			iTrack->get_Name( &name );
 			wsprintf( windowname, L"%s::%s", name, APP_TITLE );
 			SetWindowText( hwnd, windowname );
+
+            wsprintf( windowname, L"%s", name );
+			// update tooltip help message.
+			UpdateToolTipHelp( windowname );
 		}
 	}
+}
+
+/** ツールチップを作成する.
+ */
+void CreateToolTipHelp( HWND hwnd )
+{
+	g_miku.hToolTip = CreateWindowEx( 0, TOOLTIPS_CLASS, L"", TTS_ALWAYSTIP,
+                                      0, 0, 100,100, hwnd, NULL, g_miku.hInst, NULL );
+	//SetWindowPos(hToolTip,HWND_TOPMOST,0,0,0,0, SWP_NOMOVE | SWP_NOSIZE );
+
+	TOOLINFO ti;
+	memset( &ti, 0, sizeof(TOOLINFO) );
+	ti.cbSize = sizeof(TOOLINFO);
+	ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
+	ti.hwnd = g_miku.hToolTip;
+	ti.hinst = g_miku.hInst;
+	ti.lpszText = L"";
+	ti.uId = (UINT_PTR)hwnd;
+	ti.rect.left = 0;
+	ti.rect.right = 100;
+	ti.rect.top = 0;
+	ti.rect.bottom = 32;
+	SendMessage( g_miku.hToolTip, TTM_ADDTOOL, 0, (LPARAM)&ti );
+    SendMessage( g_miku.hToolTip, TTM_SETDELAYTIME, TTDT_INITIAL, (LPARAM)MAKELONG(100, 0) );
+}
+
+void UpdateToolTipHelp( WCHAR*str )
+{
+	LRESULT lResult;
+	TOOLINFO ti;
+	memset( &ti, 0, sizeof(TOOLINFO) );
+	ti.cbSize = sizeof(TOOLINFO);
+	ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
+	ti.hwnd = g_miku.hToolTip;
+	ti.hinst = g_miku.hInst;
+	ti.lpszText = str;
+	ti.uId = (UINT_PTR)g_miku.pWindow->getWindowHandle();
+	ti.rect.left = 0;
+	ti.rect.right = 100;
+	ti.rect.top = 0;
+	ti.rect.bottom = 32;
+	lResult = SendMessage( (HWND) g_miku.hToolTip,  // handle to destination control
+                           (UINT) TTM_UPDATETIPTEXT,// message ID
+                           (WPARAM) 0,              // = 0; not used, must be zero
+                           (LPARAM) &ti             // = (LPARAM) (LPTOOLINFO) lpti;
+                           );
 }
 
 /** iTunesイベントの処理.
@@ -448,6 +501,7 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
 
     case ITEventPlayerStop:
 		SetWindowText( hwnd, APP_TITLE );
+		UpdateToolTipHelp(L"");
         break;
 
 	case ITEventPlayerPlayingTrackChanged:
@@ -667,6 +721,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 
     switch( message ){
 	case WM_CREATE:
+		CreateToolTipHelp( hWnd );
 		SetTimer( hWnd, 1, 1000, NULL );
 		break;
 
@@ -700,6 +755,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 			POINT point;
 			GetCursorPos( &point );
 			g_miku.pWindow->moveWindow( point.x-g_miku.dragStartX, point.y-g_miku.dragStartY );
+		}else{
 		}
 		break;
 	case WM_LBUTTONUP:
