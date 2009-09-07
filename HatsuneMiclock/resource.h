@@ -119,13 +119,15 @@
 #define ID_BTN_ABOUT                    40010
 #define ID_BTN_SETTING                  40011
 #define ID_BTN_QUIT                     40012
+#define ID_0_40015                      40015
+#define ID_BTN_TRACKLIST                40016
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        194
-#define _APS_NEXT_COMMAND_VALUE         40015
+#define _APS_NEXT_COMMAND_VALUE         40017
 #define _APS_NEXT_CONTROL_VALUE         1022
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

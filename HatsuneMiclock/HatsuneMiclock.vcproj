@@ -64,9 +64,9 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="mylib32d.lib"
+				AdditionalDependencies="mylibd.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="1"
@@ -139,10 +139,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="mylib64d.lib"
+				AdditionalDependencies="mylibd.lib"
 				OutputFile="$(OutDir)\$(ProjectName)64.exe"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="17"
@@ -215,10 +215,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="mylib32.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.2\$(ProjectName).exe"
+				AdditionalDependencies="mylib.lib"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.3\$(ProjectName).exe"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -294,10 +294,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="mylib64.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.2\$(ProjectName)64.exe"
+				AdditionalDependencies="mylib.lib"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.3\$(ProjectName)64.exe"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"

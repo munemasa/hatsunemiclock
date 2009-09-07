@@ -17,9 +17,10 @@
 #pragma comment(lib,"comctl32.lib")		// common control
 
 
-#define APP_TITLE			 L"Hatsune Miclock"
-#define BUF_STRING_SIZE		(4096)		// number of charactors.
-#define REG_SUBKEY			L"Software\\Miku39.jp\\HatsuneMiclock"
+#define APP_TITLE				L"Hatsune Miclock"
+#define BUF_STRING_SIZE			(4096)		// 文字列バッファサイズ(NUL文字込みで)
+#define REG_SUBKEY				L"Software\\Miku39.jp\\HatsuneMiclock"
+#define ITUNES_TRACK_ID_BASE	(50000)
 
 
 struct T_MIKU_CONFIG {
@@ -60,6 +61,7 @@ struct T_MIKU_CLOCK {
 	bool		inSpeak;	// now in speaking.
 
 	IiTunes		*iTunes;
+	DWORD		iTunesEndTime;
 } g_miku;
 
 
@@ -90,19 +92,15 @@ void InitMikuClock()
 	TCHAR buf[BUF_STRING_SIZE];
 
     // position of text.
-	LoadString( GetModuleHandle(NULL), IDS_TEXT_XPOSITION,
-                buf, sizeof(BUF_STRING_SIZE) );
+	LoadString( GetModuleHandle(NULL), IDS_TEXT_XPOSITION, buf, sizeof(BUF_STRING_SIZE) );
 	g_miku.fx = _wtoi(buf);
-	LoadString( GetModuleHandle(NULL), IDS_TEXT_YPOSITION,
-                buf, sizeof(BUF_STRING_SIZE) );
+	LoadString( GetModuleHandle(NULL), IDS_TEXT_YPOSITION, buf, sizeof(BUF_STRING_SIZE) );
 	g_miku.fy = _wtoi(buf);
 
     // position of clock board.
-	LoadString( GetModuleHandle(NULL), IDS_BOARD_XPOSITION,
-                buf, sizeof(BUF_STRING_SIZE) );
+	LoadString( GetModuleHandle(NULL), IDS_BOARD_XPOSITION, buf, sizeof(BUF_STRING_SIZE) );
 	g_miku.bx = _wtoi(buf);
-	LoadString( GetModuleHandle(NULL), IDS_BOARD_YPOSITION,
-                buf, sizeof(BUF_STRING_SIZE) );
+	LoadString( GetModuleHandle(NULL), IDS_BOARD_YPOSITION, buf, sizeof(BUF_STRING_SIZE) );
 	g_miku.by = _wtoi(buf);
 
 	// speaking event
@@ -305,6 +303,7 @@ void DrawMiku(HDC hdc)
 void FindITunes( HWND hwnd )
 {
 	if( g_miku.iTunes==NULL && FindITunes() ){
+		if( GetTickCount() - g_miku.iTunesEndTime < 10*1000 ) return;
 		CreateITunesCOM( &g_miku.iTunes, hwnd );
 		ConnectITunesEvent( g_miku.iTunes );
 		SetWindowTitleToMusicName( hwnd );
@@ -398,136 +397,320 @@ void CheckMikuSpeak(HWND hwnd)
 	}
 }
 
+/** iTunesで現在再生中の曲名を取得.
+ * @param out 曲名を渡す.
+ * @param n outの配列の要素数.
+ */
+WCHAR*GetCurrentTrackName( WCHAR*out, int n )
+{
+	if( g_miku.iTunes ){
+		IITTrack *iTrack;
+		g_miku.iTunes->get_CurrentTrack( &iTrack );
+		if( iTrack ){
+			BSTR name;
+			iTrack->get_Name( &name );
+			memset( out, 0, sizeof(WCHAR)*n );
+			wcsncpy( out, name, n-1 );
+			iTrack->Release();
+            return out;
+		}
+	}
+	return NULL;
+}
+
+void AppendTrackList2( HMENU submenu )
+{
+	HMENU tracklistmenu;
+	tracklistmenu = CreatePopupMenu();
+	if( tracklistmenu==NULL ) return;
+
+	MENUITEMINFO iteminfo;
+	int cnt=0;
+	memset( &iteminfo, 0, sizeof(iteminfo) );
+	iteminfo.cbSize = sizeof(iteminfo);
+
+	if( g_miku.iTunes ){
+		IITLibraryPlaylist *iLibraryPlaylist;
+		g_miku.iTunes->get_LibraryPlaylist( &iLibraryPlaylist );
+		if( iLibraryPlaylist ){
+			IITTrackCollection *iTrackCollection;
+			iLibraryPlaylist->get_Tracks( &iTrackCollection );
+			if( iTrackCollection ){
+				long num;
+				iTrackCollection->get_Count( &num );
+				for( int i=1; i<=num; i++ ){
+					IITTrack *iTrack;
+					iTrackCollection->get_Item( i, &iTrack );
+					if( iTrack ){
+						MENUITEMINFO iteminfo;
+						iteminfo.cbSize = sizeof(iteminfo);
+						iteminfo.fMask = MIIM_STRING | MIIM_ID;
+						iteminfo.wID = ITUNES_TRACK_ID_BASE + i;
+						iTrack->get_Name( &iteminfo.dwTypeData );
+						iteminfo.cch = wcslen( iteminfo.dwTypeData );
+						InsertMenuItem( tracklistmenu, i-1, 1, &iteminfo );
+						iTrack->Release();
+						cnt++;
+					}
+				}
+				iTrackCollection->Release();
+			}
+			iLibraryPlaylist->Release();
+		}
+	}
+	if( cnt ){
+          MENUINFO menuinfo;
+          memset( &menuinfo, 0, sizeof(menuinfo) );
+          menuinfo.cbSize = sizeof(menuinfo);
+          menuinfo.fMask = MIM_STYLE;
+          menuinfo.dwStyle = MNS_AUTODISMISS | MNS_DRAGDROP;
+          SetMenuInfo( tracklistmenu, &menuinfo );
+
+        WCHAR currenttrackname[1024];
+        memset( currenttrackname, 0, sizeof(currenttrackname) );
+
+		iteminfo.fMask = MIIM_STRING | MIIM_SUBMENU;
+        iteminfo.dwTypeData = L"Track List";
+        iteminfo.cch = wcslen( L"Track List" );
+        iteminfo.hSubMenu = tracklistmenu;
+        if( GetCurrentTrackName( currenttrackname, 1024 ) ){
+			WCHAR buf[BUF_STRING_SIZE];
+			wsprintf( buf, L"%s", currenttrackname );
+            iteminfo.dwTypeData = buf;
+            iteminfo.cch = wcslen( buf );
+        }
+        InsertMenuItem( submenu, 1, 1, &iteminfo );
+        DestroyMenu( tracklistmenu );
+    }
+}
+
+void AppendTrackList( HMENU submenu )
+{
+	HMENU tracklistmenu;
+	tracklistmenu = CreatePopupMenu();
+	if( tracklistmenu==NULL ) return;
+
+	MENUITEMINFO iteminfo;
+	int cnt=0;
+	memset( &iteminfo, 0, sizeof(iteminfo) );
+	iteminfo.cbSize = sizeof(iteminfo);
+
+	if( g_miku.iTunes ){
+		IITPlaylist *iPlaylist;
+		g_miku.iTunes->get_CurrentPlaylist( &iPlaylist );
+		if( iPlaylist ){
+			IITTrackCollection *iTrackCollection;
+			iPlaylist->get_Tracks( &iTrackCollection );
+			if( iTrackCollection ){
+				long num;
+				iTrackCollection->get_Count( &num );
+				for( int i=1; i<=num; i++ ){
+					IITTrack *iTrack;
+					iTrackCollection->get_Item( i, &iTrack );
+					if( iTrack ){
+						MENUITEMINFO iteminfo;
+						iteminfo.cbSize = sizeof(iteminfo);
+						iteminfo.fMask = MIIM_STRING | MIIM_ID;
+						iteminfo.wID = ITUNES_TRACK_ID_BASE + i;
+						iTrack->get_Name( &iteminfo.dwTypeData );
+						iteminfo.cch = wcslen( iteminfo.dwTypeData );
+						InsertMenuItem( tracklistmenu, i-1, 1, &iteminfo );
+						iTrack->Release();
+						cnt++;
+					}
+				}
+				iTrackCollection->Release();
+			}
+			iPlaylist->Release();
+		}
+	}
+	if( cnt ){
+          MENUINFO menuinfo;
+          memset( &menuinfo, 0, sizeof(menuinfo) );
+          menuinfo.cbSize = sizeof(menuinfo);
+          menuinfo.fMask = MIM_STYLE;
+          menuinfo.dwStyle = MNS_AUTODISMISS | MNS_DRAGDROP;
+          SetMenuInfo( tracklistmenu, &menuinfo );
+
+        WCHAR currenttrackname[1024];
+        memset( currenttrackname, 0, sizeof(currenttrackname) );
+
+		iteminfo.fMask = MIIM_STRING | MIIM_SUBMENU;
+        iteminfo.dwTypeData = L"Track List";
+        iteminfo.cch = wcslen( L"Track List" );
+        iteminfo.hSubMenu = tracklistmenu;
+        if( GetCurrentTrackName( currenttrackname, 1024 ) ){
+			WCHAR buf[BUF_STRING_SIZE];
+			wsprintf( buf, L"%s", currenttrackname );
+            iteminfo.dwTypeData = buf;
+            iteminfo.cch = wcslen( buf );
+        }
+        InsertMenuItem( submenu, 1, 1, &iteminfo );
+        DestroyMenu( tracklistmenu );
+    }
+}
+
+
 /** コンテキストメニューを表示する.
  * @param hwnd 親ウィンドウ
  */
 void ShowContextMenu(HWND hwnd)
 {
-	HMENU menu;
-	HMENU submenu;
-	POINT pt;
+    HMENU menu;
+    HMENU submenu;
+    POINT pt;
 
-	menu = LoadMenu( GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_CONTEXTMENU) );
-	submenu = GetSubMenu( menu, 0 ); 
-	SetMenuDefaultItem( submenu, ID_BTN_WHATTIMEISITNOW, 0 );
-	GetCursorPos( &pt );
-	TrackPopupMenu( submenu, TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL );
-	DestroyMenu( menu );
+    menu = LoadMenu( GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_CONTEXTMENU) );
+    submenu = GetSubMenu( menu, 0 ); 
+    SetMenuDefaultItem( submenu, ID_BTN_WHATTIMEISITNOW, 0 );
+
+    AppendTrackList( submenu );
+    //AppendTrackList2( submenu );
+
+    GetCursorPos( &pt );
+    TrackPopupMenu( submenu, TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL );
+    DestroyMenu( menu );
 }
 
 /** ウィンドウタイトルを曲名に変更する.
  */
 void SetWindowTitleToMusicName( HWND hwnd )
 {
-	if( g_miku.iTunes ){
-		IITTrack *iTrack;
-		ITPlayerState playerState;
+    if( g_miku.iTunes ){
+        IITTrack *iTrack;
+        ITPlayerState playerState;
 
-		g_miku.iTunes->get_PlayerState( &playerState );
-		if( playerState==ITPlayerStateStopped ) return;
+        g_miku.iTunes->get_PlayerState( &playerState );
+        if( playerState==ITPlayerStateStopped ) return;
 
-		g_miku.iTunes->get_CurrentTrack( &iTrack );
-		if( iTrack ){
-			BSTR name;
-			WCHAR windowname[BUF_STRING_SIZE];
-			iTrack->get_Name( &name );
-			wsprintf( windowname, L"%s::%s", name, APP_TITLE );
-			SetWindowText( hwnd, windowname );
+        g_miku.iTunes->get_CurrentTrack( &iTrack );
+        if( iTrack ){
+            BSTR name;
+            WCHAR windowname[BUF_STRING_SIZE];
+            iTrack->get_Name( &name );
+            wsprintf( windowname, L"%s::%s", name, APP_TITLE );
+            SetWindowText( hwnd, windowname );
 
             wsprintf( windowname, L"%s", name );
-			// update tooltip help message.
-			UpdateToolTipHelp( windowname );
-		}
-	}
+            // update tooltip help message.
+            UpdateToolTipHelp( windowname );
+        }
+    }
 }
 
 /** ツールチップを作成する.
  */
 void CreateToolTipHelp( HWND hwnd )
 {
-	g_miku.hToolTip = CreateWindowEx( 0, TOOLTIPS_CLASS, L"", TTS_ALWAYSTIP,
+    g_miku.hToolTip = CreateWindowEx( 0, TOOLTIPS_CLASS, L"", TTS_ALWAYSTIP,
                                       0, 0, 100,100, hwnd, NULL, g_miku.hInst, NULL );
-	//SetWindowPos(hToolTip,HWND_TOPMOST,0,0,0,0, SWP_NOMOVE | SWP_NOSIZE );
+    //SetWindowPos(hToolTip,HWND_TOPMOST,0,0,0,0, SWP_NOMOVE | SWP_NOSIZE );
 
-	TOOLINFO ti;
-	memset( &ti, 0, sizeof(TOOLINFO) );
-	ti.cbSize = sizeof(TOOLINFO);
-	ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
-	ti.hwnd = g_miku.hToolTip;
-	ti.hinst = g_miku.hInst;
-	ti.lpszText = L"";
-	ti.uId = (UINT_PTR)hwnd;
-	ti.rect.left = 0;
-	ti.rect.right = 100;
-	ti.rect.top = 0;
-	ti.rect.bottom = 32;
-	SendMessage( g_miku.hToolTip, TTM_ADDTOOL, 0, (LPARAM)&ti );
+    TOOLINFO ti;
+    memset( &ti, 0, sizeof(TOOLINFO) );
+    ti.cbSize = sizeof(TOOLINFO);
+    ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
+    ti.hwnd = g_miku.hToolTip;
+    ti.hinst = g_miku.hInst;
+    ti.lpszText = L"";
+    ti.uId = (UINT_PTR)hwnd;
+    ti.rect.left = 0;
+    ti.rect.right = 100;
+    ti.rect.top = 0;
+    ti.rect.bottom = 32;
+    SendMessage( g_miku.hToolTip, TTM_ADDTOOL, 0, (LPARAM)&ti );
     SendMessage( g_miku.hToolTip, TTM_SETDELAYTIME, TTDT_INITIAL, (LPARAM)MAKELONG(100, 0) );
 }
 
 void UpdateToolTipHelp( WCHAR*str )
 {
-	LRESULT lResult;
-	TOOLINFO ti;
-	memset( &ti, 0, sizeof(TOOLINFO) );
-	ti.cbSize = sizeof(TOOLINFO);
-	ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
-	ti.hwnd = g_miku.hToolTip;
-	ti.hinst = g_miku.hInst;
-	ti.lpszText = str;
-	ti.uId = (UINT_PTR)g_miku.pWindow->getWindowHandle();
-	ti.rect.left = 0;
-	ti.rect.right = 100;
-	ti.rect.top = 0;
-	ti.rect.bottom = 32;
-	lResult = SendMessage( (HWND) g_miku.hToolTip,  // handle to destination control
+    LRESULT lResult;
+    TOOLINFO ti;
+    memset( &ti, 0, sizeof(TOOLINFO) );
+    ti.cbSize = sizeof(TOOLINFO);
+    ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
+    ti.hwnd = g_miku.hToolTip;
+    ti.hinst = g_miku.hInst;
+    ti.lpszText = str;
+    ti.uId = (UINT_PTR)g_miku.pWindow->getWindowHandle();
+    ti.rect.left = 0;
+    ti.rect.right = 100;
+    ti.rect.top = 0;
+    ti.rect.bottom = 32;
+    lResult = SendMessage( (HWND) g_miku.hToolTip,  // handle to destination control
                            (UINT) TTM_UPDATETIPTEXT,// message ID
                            (WPARAM) 0,              // = 0; not used, must be zero
                            (LPARAM) &ti             // = (LPARAM) (LPTOOLINFO) lpti;
                            );
 }
 
+
+void iTunesPlayOrStop()
+{
+    if( g_miku.iTunes ){
+        ITPlayerState playerState;
+        g_miku.iTunes->get_PlayerState( &playerState );
+        if( playerState==ITPlayerStateStopped ){
+            g_miku.iTunes->Play();
+        }else{
+            g_miku.iTunes->Pause();
+        }
+    }
+}
+
 /** iTunesイベントの処理.
  */
 void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
-	switch( wparam ){
+    switch( wparam ){
     case ITEventDatabaseChanged:
         break;
 
-	case ITEventPlayerPlay:
-		SetWindowTitleToMusicName( hwnd );
-		break;
-
-    case ITEventPlayerStop:
-		SetWindowText( hwnd, APP_TITLE );
-		UpdateToolTipHelp(L"");
+    case ITEventPlayerPlay:
+        SetWindowTitleToMusicName( hwnd );
         break;
 
-	case ITEventPlayerPlayingTrackChanged:
-		break;
+    case ITEventPlayerStop:
+        SetWindowText( hwnd, APP_TITLE );
+        UpdateToolTipHelp(L"");
+        break;
+
+    case ITEventPlayerPlayingTrackChanged:
+        break;
 
 	case ITEventUserInterfaceEnabled:
 		break;
 
-	case ITEventCOMCallsDisabled:
-		break;
+    case ITEventCOMCallsDisabled:
+        g_miku.iTunesEndTime = GetTickCount();
 
-	case ITEventCOMCallsEnabled:
-		break;
+        OutputDebugString( L"ITEventCOMCallsDisabled\n" );
+        SetWindowText( hwnd, APP_TITLE );
+        UpdateToolTipHelp(L"");
 
-	case ITEventQuitting:
-		break;
+        DisconnectITunesEvent();
+        if( g_miku.iTunes ){
+            g_miku.iTunes->Release();
+            g_miku.iTunes = NULL;
+        }
+        break;
 
-	case ITEventAboutToPromptUserToQuit:
-		break;
+    case ITEventCOMCallsEnabled:
+        OutputDebugString( L"ITEventCOMCallsEnabled\n" );
+        break;
 
-	case ITEventSoundVolumeChanged:
-		break;
+    case ITEventQuitting:
+        break;
 
-	default:
-		break;
-	}
+    case ITEventAboutToPromptUserToQuit:
+        break;
+
+    case ITEventSoundVolumeChanged:
+        break;
+
+    default:
+        break;
+    }
 }
 
 /** 設定ダイアログに現状を反映させる.
@@ -535,22 +718,22 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
  */
 void SetupSettingDialog( HWND hwnd )
 {
-	HWND parts;
-	parts = GetDlgItem( hwnd, IDC_CHK_TOPMOST );
-	Button_SetCheck( parts, g_config.isTopMost );
+    HWND parts;
+    parts = GetDlgItem( hwnd, IDC_CHK_TOPMOST );
+    Button_SetCheck( parts, g_config.isTopMost );
 
-	parts = GetDlgItem( hwnd, IDC_CHK_AMPM );
-	Button_SetCheck( parts, g_config.is12_24 );
+    parts = GetDlgItem( hwnd, IDC_CHK_AMPM );
+    Button_SetCheck( parts, g_config.is12_24 );
 
-	parts = GetDlgItem( hwnd, IDC_CHK_TRANSPARENCY );
-	Button_SetCheck( parts, g_config.isTransparent );
+    parts = GetDlgItem( hwnd, IDC_CHK_TRANSPARENCY );
+    Button_SetCheck( parts, g_config.isTransparent );
 
-	// display alpha value, convert to 0-100%
-	WCHAR wstr[BUF_STRING_SIZE];
-	int rate;
-	rate = g_config.trans_rate * 100 / 255;
-	wsprintf(wstr, L"%d", rate );
-	SetDlgItemText( hwnd, IDC_EDIT_TRANSPARENCY, wstr );
+    // display alpha value, convert to 0-100%
+    WCHAR wstr[BUF_STRING_SIZE];
+    int rate;
+    rate = g_config.trans_rate * 100 / 255;
+    wsprintf(wstr, L"%d", rate );
+    SetDlgItemText( hwnd, IDC_EDIT_TRANSPARENCY, wstr );
 
     HWND radio[3];
     radio[0] = GetDlgItem( hwnd, IDC_SPEAK_EVERYMIN );
@@ -559,18 +742,18 @@ void SetupSettingDialog( HWND hwnd )
     Button_SetCheck( radio[0], 0 );
     Button_SetCheck( radio[1], 0 );
     Button_SetCheck( radio[2], 0 );
-	switch(g_config.speak_type){
-	case 0: // every min.
-	default:
-		Button_SetCheck( radio[0], 1 );
-		break;
-	case 1: // every hour.
-		Button_SetCheck( radio[1], 1 );
-		break;
-	case 2: //no speaking
-		Button_SetCheck( radio[2], 1 );
-		break;
-	}
+    switch(g_config.speak_type){
+    case 0: // every min.
+    default:
+        Button_SetCheck( radio[0], 1 );
+        break;
+    case 1: // every hour.
+        Button_SetCheck( radio[1], 1 );
+        break;
+    case 2: //no speaking
+        Button_SetCheck( radio[2], 1 );
+        break;
+    }
 }
 
 /** 設定を適用する.
@@ -579,138 +762,158 @@ void SetupSettingDialog( HWND hwnd )
  */
 void ApplySetting(HWND hwnd)
 {
-	HWND parts;
+    HWND parts;
 
     // check TopMost setting
-	if( IsDlgButtonChecked( hwnd, IDC_CHK_TOPMOST )==BST_CHECKED ){
-		g_miku.pWindow->setTopMost(true);
-		g_config.isTopMost = TRUE;
-	}else{
-		g_miku.pWindow->setTopMost(false);
-		g_config.isTopMost = FALSE;
-	}
+    if( IsDlgButtonChecked( hwnd, IDC_CHK_TOPMOST )==BST_CHECKED ){
+        g_miku.pWindow->setTopMost(true);
+        g_config.isTopMost = TRUE;
+    }else{
+        g_miku.pWindow->setTopMost(false);
+        g_config.isTopMost = FALSE;
+    }
 
-	// calculate alpha value
-	int tmp;
-	WCHAR buf[BUF_STRING_SIZE];
-	GetDlgItemText( hwnd, IDC_EDIT_TRANSPARENCY, buf, BUF_STRING_SIZE );
-	tmp = _wtoi( buf );
-	tmp = 256 * tmp / 100;
-	if( tmp > 255 ) tmp = 255;
+    // calculate alpha value
+    int tmp;
+    WCHAR buf[BUF_STRING_SIZE];
+    GetDlgItemText( hwnd, IDC_EDIT_TRANSPARENCY, buf, BUF_STRING_SIZE );
+    tmp = _wtoi( buf );
+    tmp = 256 * tmp / 100;
+    if( tmp > 255 ) tmp = 255;
 
     // check transparency
-	if( IsDlgButtonChecked( hwnd, IDC_CHK_TRANSPARENCY )==BST_CHECKED ){
-		g_miku.pWindow->setTransparency(tmp);
-		g_config.isTransparent = TRUE;
-		g_config.trans_rate = tmp;
-	}else{
-		g_miku.pWindow->setTransparency(255);
-		g_config.isTransparent = FALSE;
-		g_config.trans_rate = tmp;
-	}
+    if( IsDlgButtonChecked( hwnd, IDC_CHK_TRANSPARENCY )==BST_CHECKED ){
+        g_miku.pWindow->setTransparency(tmp);
+        g_config.isTransparent = TRUE;
+        g_config.trans_rate = tmp;
+    }else{
+        g_miku.pWindow->setTransparency(255);
+        g_config.isTransparent = FALSE;
+        g_config.trans_rate = tmp;
+    }
 
-	parts = GetDlgItem( hwnd, IDC_CHK_AMPM );
-	g_config.is12_24 = Button_GetCheck( parts );
+    parts = GetDlgItem( hwnd, IDC_CHK_AMPM );
+    g_config.is12_24 = Button_GetCheck( parts );
 
-	g_config.speak_type = 0;
-	parts = GetDlgItem( hwnd, IDC_SPEAK_EVERYMIN );
-	if( Button_GetCheck( parts ) ){
-		g_config.speak_type = 0;
-	}
-	parts = GetDlgItem( hwnd, IDC_SPEAK_EVERYHOUR );
-	if( Button_GetCheck( parts ) ){
-		g_config.speak_type = 1;
-	}
-	parts = GetDlgItem( hwnd, IDC_NOSPEAK );
-	if( Button_GetCheck( parts ) ){
-		g_config.speak_type = 2;
-	}
+    g_config.speak_type = 0;
+    parts = GetDlgItem( hwnd, IDC_SPEAK_EVERYMIN );
+    if( Button_GetCheck( parts ) ){
+        g_config.speak_type = 0;
+    }
+    parts = GetDlgItem( hwnd, IDC_SPEAK_EVERYHOUR );
+    if( Button_GetCheck( parts ) ){
+        g_config.speak_type = 1;
+    }
+    parts = GetDlgItem( hwnd, IDC_NOSPEAK );
+    if( Button_GetCheck( parts ) ){
+        g_config.speak_type = 2;
+    }
 
-	SaveToRegistory();
+    SaveToRegistory();
 }
 
 INT_PTR CALLBACK DlgAboutProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-	switch(msg){
-	case WM_INITDIALOG:
-		return TRUE;
+    switch(msg){
+    case WM_INITDIALOG:
+        return TRUE;
 
-	case WM_COMMAND:
-		switch(LOWORD(wp)){
-		case IDYES:
-			EndDialog(hDlgWnd, IDOK);
-			break;
-		default:
-			return FALSE;
-		}
+    case WM_COMMAND:
+        switch(LOWORD(wp)){
+        case IDYES:
+            EndDialog(hDlgWnd, IDOK);
+            break;
+        default:
+            return FALSE;
+        }
         break;
-	case WM_CLOSE:
-		PostMessage( hDlgWnd, WM_COMMAND, IDYES, 0 );
-		return TRUE;
+    case WM_CLOSE:
+        PostMessage( hDlgWnd, WM_COMMAND, IDYES, 0 );
+        return TRUE;
 
-	default:
-		return FALSE;
-	}
-	return TRUE;
+    default:
+        return FALSE;
+    }
+    return TRUE;
 }
-
-
 
 
 INT_PTR CALLBACK DlgSettingProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
-	switch(msg){
-	case WM_INITDIALOG:
-		SetupSettingDialog( hDlgWnd );
-		return TRUE;
+    switch(msg){
+    case WM_INITDIALOG:
+        SetupSettingDialog( hDlgWnd );
+        return TRUE;
 
-	case WM_COMMAND:
-		switch(LOWORD(wp)){
-		case IDYES:
-			ApplySetting( hDlgWnd );
-			EndDialog( hDlgWnd, IDOK );
-			break;
-		case IDCANCEL:
-			EndDialog( hDlgWnd, IDOK );
-			break;
-		default:
-			break;
-		}
-		return FALSE;
-		break;
+    case WM_COMMAND:
+        switch(LOWORD(wp)){
+        case IDYES:
+            ApplySetting( hDlgWnd );
+            EndDialog( hDlgWnd, IDOK );
+            break;
+        case IDCANCEL:
+            EndDialog( hDlgWnd, IDOK );
+            break;
+        default:
+            break;
+        }
+        return FALSE;
+        break;
 
-	case WM_CLOSE:
-		PostMessage( hDlgWnd, WM_COMMAND, IDCANCEL, 0 );
-		return TRUE;
+    case WM_CLOSE:
+        PostMessage( hDlgWnd, WM_COMMAND, IDCANCEL, 0 );
+        return TRUE;
 
-	default:
-		return FALSE;
-	}
-	return TRUE;
+    default:
+        return FALSE;
+    }
+    return TRUE;
 }
 
 LRESULT ProcessContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 {
-	switch( LOWORD(wParam) ){
-	case ID_BTN_QUIT:
-		DestroyWindow( hWnd );
-		break;
+    WORD id = LOWORD(wParam);
+    switch( id ){
+    case ID_BTN_QUIT:
+        DestroyWindow( hWnd );
+        break;
 
-	case ID_BTN_ABOUT:
-		DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_ABOUT_DIALOG), hWnd, DlgAboutProc );
-		break;
+    case ID_BTN_ABOUT:
+        DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_ABOUT_DIALOG), hWnd, DlgAboutProc );
+        break;
 
-	case ID_BTN_SETTING:
-		DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_SETTING_DIALOG), hWnd, DlgSettingProc );
-		break;
+    case ID_BTN_SETTING:
+        DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_SETTING_DIALOG), hWnd, DlgSettingProc );
+        break;
 
-	case ID_BTN_WHATTIMEISITNOW:
-		SpeakMiku();
-		break;
-	default:
-		break;
-	}
-	return S_OK;
+    case ID_BTN_WHATTIMEISITNOW:
+        SpeakMiku();
+        break;
+    default:
+        if( id>ITUNES_TRACK_ID_BASE ){
+            id -= ITUNES_TRACK_ID_BASE;
+            if( g_miku.iTunes ){
+                IITPlaylist *iPlaylist;
+                g_miku.iTunes->get_CurrentPlaylist( &iPlaylist );
+                if( iPlaylist ){
+                    IITTrackCollection *iTrackCollection;
+                    iPlaylist->get_Tracks( &iTrackCollection );
+                    if( iTrackCollection ){
+                        IITTrack *iTrack;
+                        iTrackCollection->get_Item( id, &iTrack );
+                        if( iTrack ){
+                            iTrack->Play();
+                            iTrack->Release();
+                        }
+                        iTrackCollection->Release();
+                    }
+                    iPlaylist->Release();
+                }
+            }
+        }
+        break;
+    }
+    return S_OK;
 }
 
 
@@ -720,10 +923,10 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
     HDC hdc;
 
     switch( message ){
-	case WM_CREATE:
-		CreateToolTipHelp( hWnd );
-		SetTimer( hWnd, 1, 1000, NULL );
-		break;
+    case WM_CREATE:
+        CreateToolTipHelp( hWnd );
+        SetTimer( hWnd, 1, 1000, NULL );
+        break;
 
     case WM_PAINT:
         hdc = BeginPaint( hWnd, &ps );
@@ -731,100 +934,105 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
         EndPaint( hWnd, &ps );
         break;
 
-	case WM_TIMER:
-		UpdateMikuClock();
-		InvalidateRect( hWnd, NULL, TRUE );
-		CheckMikuSpeak( hWnd );
-		FindITunes( hWnd );
-		break;
+    case WM_TIMER:
+        UpdateMikuClock();
+        InvalidateRect( hWnd, NULL, TRUE );
+        CheckMikuSpeak( hWnd );
+        FindITunes( hWnd );
+        break;
 
-	case WM_LBUTTONDBLCLK:  // double click
-		SpeakMiku();
-		break;
+    case WM_LBUTTONDBLCLK:  // double click
+        iTunesPlayOrStop();
+        //SpeakMiku();
+        break;
 
-	case WM_LBUTTONDOWN:
-		// begin moving window.
-		g_miku.inDrag = true;
-		g_miku.dragStartX = LOWORD(lParam);
-		g_miku.dragStartY = HIWORD(lParam);
-		SetCapture( hWnd );
-		break;
-	case WM_MOUSEMOVE:
-		// window is moving.
-		if( g_miku.inDrag ){
-			POINT point;
-			GetCursorPos( &point );
-			g_miku.pWindow->moveWindow( point.x-g_miku.dragStartX, point.y-g_miku.dragStartY );
-		}else{
-		}
-		break;
-	case WM_LBUTTONUP:
-		// finish moving window.
-		g_miku.inDrag = false;
-		ReleaseCapture();
-		break;
+    case WM_LBUTTONDOWN:
+        // begin moving window.
+        g_miku.inDrag = true;
+        g_miku.dragStartX = LOWORD(lParam);
+        g_miku.dragStartY = HIWORD(lParam);
+        SetCapture( hWnd );
+        break;
+    case WM_MOUSEMOVE:
+        // window is moving.
+        if( g_miku.inDrag ){
+            POINT point;
+            GetCursorPos( &point );
+            g_miku.pWindow->moveWindow( point.x-g_miku.dragStartX, point.y-g_miku.dragStartY );
+        }else{
+        }
+        break;
+    case WM_LBUTTONUP:
+        // finish moving window.
+        g_miku.inDrag = false;
+        ReleaseCapture();
+        break;
 
-	case WM_RBUTTONDOWN:
-		// show menu
-		ShowContextMenu( hWnd );
-		break;
+    case WM_RBUTTONDOWN:
+        // show menu
+        ShowContextMenu( hWnd );
+        break;
 
     case WM_DESTROY:
-		SaveToRegistory();
+        SaveToRegistory();
         PostQuitMessage( 0 );
         break;
 
-	case WM_COMMAND:
-		// drive popup menu.
-		ProcessContextMenu( hWnd, wParam, lParam );
-		break;
+    case WM_COMMAND:
+        // drive popup menu.
+        ProcessContextMenu( hWnd, wParam, lParam );
+        break;
 
-	case WM_ITUNES:
-		ProcessITunesEvent( hWnd, wParam, lParam );
-		break;
+    case WM_MOUSEWHEEL:
+        OutputDebugString( L"Mouse Wheel\n");
+        break;
 
-	default:
-		break;
+    case WM_ITUNES:
+        ProcessITunesEvent( hWnd, wParam, lParam );
+        break;
+
+    default:
+        break;
     }
 
-	return DefWindowProc( hWnd, message, wParam, lParam );
+    return DefWindowProc( hWnd, message, wParam, lParam );
 }
 
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
-	InitMikuClock();
+    InitMikuClock();
     LoadMikuImage();
-	UpdateMikuClock();
+    UpdateMikuClock();
 
-	g_miku.hInst = hInstance;
-	g_miku.pWindow = new tWindow( APP_TITLE, 100, 100, 256, 256, WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX, WndProc, hInstance );
-	g_miku.pWindow->resizeWindow( g_miku.w, g_miku.h );
-	SetMikuWindowRegion( g_miku.pWindow->getWindowHandle() );
+    g_miku.hInst = hInstance;
+    g_miku.pWindow = new tWindow( APP_TITLE, 100, 100, 256, 256, WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX, WndProc, hInstance );
+    g_miku.pWindow->resizeWindow( g_miku.w, g_miku.h );
+    SetMikuWindowRegion( g_miku.pWindow->getWindowHandle() );
 
-	LoadFromRegistory();
-	g_miku.pWindow->moveWindow( g_config.winx, g_config.winy );
-	g_miku.pWindow->setTransparency( g_config.isTransparent?g_config.trans_rate:255 );
-	g_miku.pWindow->setTopMost( g_config.isTopMost );
+    LoadFromRegistory();
+    g_miku.pWindow->moveWindow( g_config.winx, g_config.winy );
+    g_miku.pWindow->setTransparency( g_config.isTransparent?g_config.trans_rate:255 );
+    g_miku.pWindow->setTopMost( g_config.isTopMost );
 
-	g_miku.pWindow->show();
+    g_miku.pWindow->show();
 
-	// Main message loop
+    // Main message loop
     MSG msg = {0};
     BOOL bRet;
     while( (bRet = GetMessage( &msg, NULL, 0, 0 )) != 0){
         if (bRet == -1){
             // handle the error and possibly exit
-			OutputDebugString(L"Error occurred while GetMessage()\n");
-			break;
+            OutputDebugString(L"Error occurred while GetMessage()\n");
+            break;
 
-		}else{
+        }else{
             TranslateMessage(&msg); 
             DispatchMessage(&msg); 
         }
     }
 
-	ExitMikuClock();
+    ExitMikuClock();
 
-	delete g_miku.pWindow;
-	return (int)msg.wParam;
+    delete g_miku.pWindow;
+    return (int)msg.wParam;
 }
