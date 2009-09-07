@@ -85,11 +85,12 @@ int dprintf(WCHAR*format,...)
 
 /** 初音ミクロックの初期化.
  * ライブラリ、スレッド、ワークの初期化を行う.
+ * WinMainの最初で呼ぶ.
  */
 void InitMikuClock()
 {
     // read some parameters from resource.
-	memset( &g_miku, 0, sizeof(g_miku) );
+	ZeroMemory( &g_miku, sizeof(g_miku) );
 
 	TCHAR buf[BUF_STRING_SIZE];
 
@@ -123,6 +124,7 @@ void InitMikuClock()
 
 /** 初音ミクロックの後片付け.
  * iTunesから切断したり.
+ * WinMainの最後で呼ぶ.
  */
 void ExitMikuClock()
 {
@@ -411,7 +413,7 @@ WCHAR*GetCurrentTrackName( WCHAR*out, int n )
 		if( iTrack ){
 			BSTR name;
 			iTrack->get_Name( &name );
-			memset( out, 0, sizeof(WCHAR)*n );
+			ZeroMemory( out, sizeof(WCHAR)*n );
 			wcsncpy( out, name, n-1 );
 			iTrack->Release();
             return out;
@@ -433,86 +435,6 @@ long GetCurrentTrackPlaylistIndex( long *id )
 	return 0;
 }
 
-
-/** iTunesのプレイリストをメニューに追加.
- * @param submenu 追加する先のメニュー(メニュー項目の上から2番目の位置に追加される)
- */
-void AppendTrackList( HMENU submenu )
-{
-	HMENU tracklistmenu;
-	MENUITEMINFO iteminfo;
-	long playlistid;
-	int cnt=0;
-
-	if( g_miku.iTunes==NULL ) return;
-
-	tracklistmenu = CreatePopupMenu();
-	if( tracklistmenu==NULL ) return;
-
-	GetCurrentTrackPlaylistIndex( &playlistid );
-
-	memset( &iteminfo, 0, sizeof(iteminfo) );
-	iteminfo.cbSize = sizeof(iteminfo);
-
-	IITPlaylist *iPlaylist;
-	g_miku.iTunes->get_CurrentPlaylist( &iPlaylist );
-	if( iPlaylist ){
-		IITTrackCollection *iTrackCollection;
-		iPlaylist->get_Tracks( &iTrackCollection );
-		if( iTrackCollection ){
-			long num;
-			iTrackCollection->get_Count( &num );
-			for( int i=1; i<=num; i++ ){
-				IITTrack *iTrack;
-				iTrackCollection->get_Item( i, &iTrack );
-				if( iTrack ){
-					MENUITEMINFO iteminfo;
-					memset( &iteminfo, 0, sizeof(iteminfo) );
-					iteminfo.cbSize = sizeof(iteminfo);
-					iteminfo.fMask = MIIM_STRING | MIIM_ID | MIIM_STATE;
-					iteminfo.wID = ITUNES_TRACK_ID_BASE + i;
-					// 再生中のものはハイライトとデフォルトを付ける
-					iteminfo.fState = playlistid==i ? MFS_HILITE|MFS_DEFAULT : 0;
-					iTrack->get_Name( &iteminfo.dwTypeData );
-					iteminfo.cch = wcslen( iteminfo.dwTypeData );
-
-					InsertMenuItem( tracklistmenu, i-1, 1, &iteminfo );
-					iTrack->Release();
-					cnt++;
-				}
-			}
-			iTrackCollection->Release();
-		}
-		iPlaylist->Release();
-	}
-	if( cnt ){
-		MENUINFO info;
-		info.cbSize = sizeof(info);
-		info.cyMax = 400;
-		info.fMask = MIM_MAXHEIGHT | MIM_STYLE;
-		info.dwStyle = MNS_CHECKORBMP;
-		SetMenuInfo( tracklistmenu, &info );
-
-        WCHAR currenttrackname[1024];
-        memset( currenttrackname, 0, sizeof(currenttrackname) );
-
-		iteminfo.fMask = MIIM_STRING | MIIM_SUBMENU;
-        iteminfo.dwTypeData = L"Track List";
-        iteminfo.cch = wcslen( L"Track List" );
-        iteminfo.hSubMenu = tracklistmenu;
-        if( GetCurrentTrackName( currenttrackname, 1024 ) ){
-			WCHAR buf[BUF_STRING_SIZE];
-			wsprintf( buf, L"%s", currenttrackname );
-            iteminfo.dwTypeData = buf;
-            iteminfo.cch = wcslen( buf );
-        }
-
-        InsertMenuItem( submenu, 1, 1, &iteminfo );
-        DestroyMenu( tracklistmenu );
-    }
-}
-
-
 /** ポップアップメニューを表示する.
  * @param hwnd 親ウィンドウ
  */
@@ -526,7 +448,24 @@ void ShowPopupMenu(HWND hwnd)
     submenu = GetSubMenu( menu, 0 ); 
     SetMenuDefaultItem( submenu, ID_BTN_WHATTIMEISITNOW, 0 );
 
-    AppendTrackList( submenu );
+	MENUITEMINFO iteminfo;
+	ZeroMemory( &iteminfo, sizeof(iteminfo) );
+	iteminfo.cbSize = sizeof(iteminfo);
+
+	HMENU tracklistmenu = CreatePopupMenu();
+    WCHAR currenttrackname[1024];
+    ZeroMemory( currenttrackname, sizeof(currenttrackname) );
+	iteminfo.fMask = MIIM_STRING | MIIM_SUBMENU;
+    iteminfo.dwTypeData = L"Track List";
+    iteminfo.cch = wcslen( L"Track List" );
+    iteminfo.hSubMenu = tracklistmenu;
+    if( GetCurrentTrackName( currenttrackname, 1024 ) ){
+		WCHAR buf[BUF_STRING_SIZE];
+		wsprintf( buf, L"%s", currenttrackname );
+        iteminfo.dwTypeData = buf;
+        iteminfo.cch = wcslen( buf );
+    }
+    InsertMenuItem( submenu, 1, 1, &iteminfo );
 
 	GetCursorPos( &pt );
     TrackPopupMenu( submenu, TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL );
@@ -571,7 +510,7 @@ void CreateToolTipHelp( HWND hwnd )
     g_miku.hToolTip = CreateWindowEx( 0, TOOLTIPS_CLASS, L"", TTS_ALWAYSTIP,
                                       0, 0, 100,100, hwnd, NULL, g_miku.hInst, NULL );
     TOOLINFO ti;
-    memset( &ti, 0, sizeof(TOOLINFO) );
+    ZeroMemory( &ti, sizeof(TOOLINFO) );
     ti.cbSize = sizeof(TOOLINFO);
     ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
     ti.hwnd = g_miku.hToolTip;
@@ -592,7 +531,7 @@ void UpdateToolTipHelp( WCHAR*str )
 {
     LRESULT lResult;
     TOOLINFO ti;
-    memset( &ti, 0, sizeof(TOOLINFO) );
+    ZeroMemory( &ti, sizeof(TOOLINFO) );
     ti.cbSize = sizeof(TOOLINFO);
     ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
     ti.hwnd = g_miku.hToolTip;
@@ -626,7 +565,7 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
     switch( wparam ){
     case ITEventDatabaseChanged:
-		OutputDebugString( L"ITEventDatabaseChanged\n" );
+		dprintf( L"ITEventDatabaseChanged\n" );
         break;
 
     case ITEventPlayerPlay:
@@ -639,17 +578,17 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
         break;
 
     case ITEventPlayerPlayingTrackChanged:
-		OutputDebugString( L"ITEventPlayerPlayingTrackChanged\n" );
+		dprintf( L"ITEventPlayerPlayingTrackChanged\n" );
         break;
 
 	case ITEventUserInterfaceEnabled:
-		OutputDebugString( L"ITEventUserInterfaceEnabled\n" );
+		dprintf( L"ITEventUserInterfaceEnabled\n" );
 		break;
 
     case ITEventCOMCallsDisabled:
         g_miku.iTunesEndTime = GetTickCount();
 
-        OutputDebugString( L"ITEventCOMCallsDisabled\n" );
+        dprintf( L"ITEventCOMCallsDisabled\n" );
         SetWindowText( hwnd, APP_TITLE );
         UpdateToolTipHelp(L"");
 
@@ -661,7 +600,7 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
         break;
 
     case ITEventCOMCallsEnabled:
-        OutputDebugString( L"ITEventCOMCallsEnabled\n" );
+        dprintf( L"ITEventCOMCallsEnabled\n" );
         break;
 
     case ITEventQuitting:
@@ -883,10 +822,74 @@ LRESULT ProcessContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
     return S_OK;
 }
 
+/** ポップアップメニューが選択されているときの処理.
+ */
 void OnMenuSelect( HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
 	dprintf( L"menu index:%d\n", LOWORD(wparam) );
 	dprintf( L"wparam:%x\n", wparam );
+
+	HMENU menu = (HMENU)lparam;
+	int idx = LOWORD(wparam);
+	int flg = HIWORD(wparam);
+	if( idx==1 && (flg & MF_POPUP) ){
+        /* idx==1 (Track List) が選択されたら、
+         * 現在のプレイリストでサブメニュー項目を構築する.
+         */
+		HMENU tracklistmenu = GetSubMenu( menu, idx );
+		if( g_miku.iTunes==NULL ) return;
+		if( tracklistmenu==NULL ) return;
+		if( GetMenuItemCount(tracklistmenu)!=0 ){
+            dprintf( L"Tracklist was already created.\n" );
+            return;
+        }
+
+        // メニューの高さをスクリーン高の半分に制限.
+        MENUINFO info;
+		ZeroMemory( &info, sizeof(info) );
+        info.cbSize = sizeof(info);
+        info.cyMax = GetSystemMetrics( SM_CYSCREEN ) / 2;   //400;
+        info.fMask = MIM_MAXHEIGHT;
+        SetMenuInfo( tracklistmenu, &info );
+
+		MENUITEMINFO iteminfo;
+		long playlistidx;
+		GetCurrentTrackPlaylistIndex( &playlistidx );
+		ZeroMemory( &iteminfo, sizeof(iteminfo) );
+		iteminfo.cbSize = sizeof(iteminfo);
+
+		IITPlaylist *iPlaylist;
+		g_miku.iTunes->get_CurrentPlaylist( &iPlaylist );
+		if( iPlaylist ){
+			IITTrackCollection *iTrackCollection;
+			iPlaylist->get_Tracks( &iTrackCollection );
+			if( iTrackCollection ){
+				long num;
+				iTrackCollection->get_Count( &num );
+                // 最大1000曲までに制限.
+				for( int i=1; i<=num && i<=1000; i++ ){
+					IITTrack *iTrack;
+					iTrackCollection->get_Item( i, &iTrack );
+					if( iTrack ){
+						MENUITEMINFO iteminfo;
+						ZeroMemory( &iteminfo, sizeof(iteminfo) );
+						iteminfo.cbSize = sizeof(iteminfo);
+						iteminfo.fMask = MIIM_STRING | MIIM_ID | MIIM_STATE;
+						iteminfo.wID = ITUNES_TRACK_ID_BASE + i;
+						// 再生中のものはハイライトとデフォルトを付ける
+						iteminfo.fState = playlistidx==i ? MFS_HILITE|MFS_DEFAULT : 0;
+						iTrack->get_Name( &iteminfo.dwTypeData );
+						iteminfo.cch = wcslen( iteminfo.dwTypeData );
+
+						InsertMenuItem( tracklistmenu, i-1, 1, &iteminfo );
+						iTrack->Release();
+					}
+				}
+				iTrackCollection->Release();
+			}
+			iPlaylist->Release();
+		}
+	}
 }
 
 LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
@@ -932,7 +935,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
             GetCursorPos( &point );
             g_miku.pWindow->moveWindow( point.x-g_miku.dragStartX, point.y-g_miku.dragStartY );
         }else{
-			//OutputDebugString( L"WM_MOUSEMOVE\n" );
+			//dprintf( L"WM_MOUSEMOVE\n" );
         }
         break;
     case WM_LBUTTONUP:
@@ -948,15 +951,15 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
         break;
 
 	case WM_MENUSELECT:
-		OutputDebugString( L"WM_MENUSELECT\n" );
+		dprintf( L"WM_MENUSELECT\n" );
 		OnMenuSelect( hWnd, wParam, lParam );
 		break;
 
 	case WM_INITMENUPOPUP:
-		OutputDebugString( L"WM_INITMENUPOPUP\n" );
+		dprintf( L"WM_INITMENUPOPUP\n" );
 		break;
 	case WM_UNINITMENUPOPUP:
-		OutputDebugString( L"WM_UNINITMENUPOPUP\n" );
+		dprintf( L"WM_UNINITMENUPOPUP\n" );
 		break;
 
 	case WM_DESTROY:
@@ -970,7 +973,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
         break;
 
     case WM_MOUSEWHEEL:
-        OutputDebugString( L"Mouse Wheel\n");
+        dprintf( L"Mouse Wheel\n");
         break;
 
     case WM_ITUNES:
@@ -1008,9 +1011,8 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
     while( (bRet = GetMessage( &msg, NULL, 0, 0 )) != 0){
         if (bRet == -1){
             // handle the error and possibly exit
-            OutputDebugString(L"Error occurred while GetMessage()\n");
+            dprintf(L"Error occurred while GetMessage()\n");
             break;
-
         }else{
             TranslateMessage(&msg); 
             DispatchMessage(&msg); 
