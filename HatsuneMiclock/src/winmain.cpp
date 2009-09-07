@@ -433,12 +433,18 @@ long GetCurrentTrackPlaylistIndex( long *id )
 	return 0;
 }
 
+
+/** iTunesのプレイリストをメニューに追加.
+ * @param submenu 追加する先のメニュー(メニュー項目の上から2番目の位置に追加される)
+ */
 void AppendTrackList( HMENU submenu )
 {
 	HMENU tracklistmenu;
 	MENUITEMINFO iteminfo;
 	long playlistid;
 	int cnt=0;
+
+	if( g_miku.iTunes==NULL ) return;
 
 	tracklistmenu = CreatePopupMenu();
 	if( tracklistmenu==NULL ) return;
@@ -448,38 +454,36 @@ void AppendTrackList( HMENU submenu )
 	memset( &iteminfo, 0, sizeof(iteminfo) );
 	iteminfo.cbSize = sizeof(iteminfo);
 
-	if( g_miku.iTunes ){
-		IITPlaylist *iPlaylist;
-		g_miku.iTunes->get_CurrentPlaylist( &iPlaylist );
-		if( iPlaylist ){
-			IITTrackCollection *iTrackCollection;
-			iPlaylist->get_Tracks( &iTrackCollection );
-			if( iTrackCollection ){
-				long num;
-				iTrackCollection->get_Count( &num );
-				for( int i=1; i<=num; i++ ){
-					IITTrack *iTrack;
-					iTrackCollection->get_Item( i, &iTrack );
-					if( iTrack ){
-						MENUITEMINFO iteminfo;
-						memset( &iteminfo, 0, sizeof(iteminfo) );
-						iteminfo.cbSize = sizeof(iteminfo);
-						iteminfo.fMask = MIIM_STRING | MIIM_ID | MIIM_STATE;
-						iteminfo.wID = ITUNES_TRACK_ID_BASE + i;
-						// 再生中のものはハイライトとデフォルトを付ける
-						iteminfo.fState = playlistid==i ? MFS_HILITE|MFS_DEFAULT : 0;
-						iTrack->get_Name( &iteminfo.dwTypeData );
-						iteminfo.cch = wcslen( iteminfo.dwTypeData );
+	IITPlaylist *iPlaylist;
+	g_miku.iTunes->get_CurrentPlaylist( &iPlaylist );
+	if( iPlaylist ){
+		IITTrackCollection *iTrackCollection;
+		iPlaylist->get_Tracks( &iTrackCollection );
+		if( iTrackCollection ){
+			long num;
+			iTrackCollection->get_Count( &num );
+			for( int i=1; i<=num; i++ ){
+				IITTrack *iTrack;
+				iTrackCollection->get_Item( i, &iTrack );
+				if( iTrack ){
+					MENUITEMINFO iteminfo;
+					memset( &iteminfo, 0, sizeof(iteminfo) );
+					iteminfo.cbSize = sizeof(iteminfo);
+					iteminfo.fMask = MIIM_STRING | MIIM_ID | MIIM_STATE;
+					iteminfo.wID = ITUNES_TRACK_ID_BASE + i;
+					// 再生中のものはハイライトとデフォルトを付ける
+					iteminfo.fState = playlistid==i ? MFS_HILITE|MFS_DEFAULT : 0;
+					iTrack->get_Name( &iteminfo.dwTypeData );
+					iteminfo.cch = wcslen( iteminfo.dwTypeData );
 
-						InsertMenuItem( tracklistmenu, i-1, 1, &iteminfo );
-						iTrack->Release();
-						cnt++;
-					}
+					InsertMenuItem( tracklistmenu, i-1, 1, &iteminfo );
+					iTrack->Release();
+					cnt++;
 				}
-				iTrackCollection->Release();
 			}
-			iPlaylist->Release();
+			iTrackCollection->Release();
 		}
+		iPlaylist->Release();
 	}
 	if( cnt ){
 		MENUINFO info;
@@ -530,7 +534,8 @@ void ShowPopupMenu(HWND hwnd)
 	DestroyMenu( menu );
 }
 
-/** ウィンドウタイトルを曲名に変更する.
+/** ウィンドウタイトルを再生中の曲名に変更する.
+ * @param hwnd 変更するウィンドウ
  */
 void SetWindowTitleToMusicName( HWND hwnd )
 {
@@ -559,6 +564,7 @@ void SetWindowTitleToMusicName( HWND hwnd )
 }
 
 /** ツールチップを作成する.
+ * @param hwnd 親ウィンドウハンドル
  */
 void CreateToolTipHelp( HWND hwnd )
 {
@@ -580,6 +586,8 @@ void CreateToolTipHelp( HWND hwnd )
     SendMessage( g_miku.hToolTip, TTM_SETDELAYTIME, TTDT_INITIAL, (LPARAM)MAKELONG(100, 0) );
 }
 
+/** ツールチップヘルプメッセージを更新する.
+ */
 void UpdateToolTipHelp( WCHAR*str )
 {
     LRESULT lResult;
@@ -595,14 +603,10 @@ void UpdateToolTipHelp( WCHAR*str )
     ti.rect.right = 100;
     ti.rect.top = 0;
     ti.rect.bottom = 32;
-    lResult = SendMessage( (HWND) g_miku.hToolTip,  // handle to destination control
-                           (UINT) TTM_UPDATETIPTEXT,// message ID
-                           (WPARAM) 0,              // = 0; not used, must be zero
-                           (LPARAM) &ti             // = (LPARAM) (LPTOOLINFO) lpti;
-                           );
+    lResult = SendMessage( (HWND)g_miku.hToolTip, (UINT)TTM_UPDATETIPTEXT, (WPARAM)0, (LPARAM)&ti );
 }
 
-
+/// 再生とポーズを切り替える.
 void iTunesPlayOrStop()
 {
     if( g_miku.iTunes ){
@@ -852,25 +856,27 @@ LRESULT ProcessContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
         break;
     default:
         if( id>ITUNES_TRACK_ID_BASE ){
+            IITPlaylist *iPlaylist;
+
+            if( g_miku.iTunes==NULL ) break;
+
             id -= ITUNES_TRACK_ID_BASE;
-            if( g_miku.iTunes ){
-                IITPlaylist *iPlaylist;
-                g_miku.iTunes->get_CurrentPlaylist( &iPlaylist );
-                if( iPlaylist ){
-                    IITTrackCollection *iTrackCollection;
-                    iPlaylist->get_Tracks( &iTrackCollection );
-                    if( iTrackCollection ){
-                        IITTrack *iTrack;
-                        iTrackCollection->get_Item( id, &iTrack );
-                        if( iTrack ){
-                            iTrack->Play();
-                            iTrack->Release();
-                        }
-                        iTrackCollection->Release();
+            g_miku.iTunes->get_CurrentPlaylist( &iPlaylist );
+            if( iPlaylist ){
+                IITTrackCollection *iTrackCollection;
+                iPlaylist->get_Tracks( &iTrackCollection );
+                if( iTrackCollection ){
+                    IITTrack *iTrack;
+                    iTrackCollection->get_Item( id, &iTrack );
+                    if( iTrack ){
+                        iTrack->Play();
+                        iTrack->Release();
                     }
-                    iPlaylist->Release();
+                    iTrackCollection->Release();
                 }
+                iPlaylist->Release();
             }
+
         }
         break;
     }
