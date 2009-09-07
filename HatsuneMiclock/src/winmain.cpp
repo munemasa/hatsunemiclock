@@ -16,6 +16,8 @@
 #pragma comment(lib,"winmm.lib")		// windows multimedia
 #pragma comment(lib,"comctl32.lib")		// common control
 
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+
 
 #define APP_TITLE				L"Hatsune Miclock"
 #define BUF_STRING_SIZE			(4096)		// 文字列バッファサイズ(NUL文字込みで)
@@ -115,7 +117,7 @@ void InitMikuClock()
 	// common control
 	INITCOMMONCONTROLSEX ic;
 	ic.dwSize = sizeof(INITCOMMONCONTROLSEX);
-	ic.dwICC = ICC_UPDOWN_CLASS | ICC_BAR_CLASSES;// | ICC_LINK_CLASS;
+	ic.dwICC = ICC_UPDOWN_CLASS | ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES;
 	InitCommonControlsEx(&ic); 
 }
 
@@ -418,80 +420,31 @@ WCHAR*GetCurrentTrackName( WCHAR*out, int n )
 	return NULL;
 }
 
-void AppendTrackList2( HMENU submenu )
+long GetCurrentTrackPlaylistIndex( long *id )
 {
-	HMENU tracklistmenu;
-	tracklistmenu = CreatePopupMenu();
-	if( tracklistmenu==NULL ) return;
-
-	MENUITEMINFO iteminfo;
-	int cnt=0;
-	memset( &iteminfo, 0, sizeof(iteminfo) );
-	iteminfo.cbSize = sizeof(iteminfo);
-
 	if( g_miku.iTunes ){
-		IITLibraryPlaylist *iLibraryPlaylist;
-		g_miku.iTunes->get_LibraryPlaylist( &iLibraryPlaylist );
-		if( iLibraryPlaylist ){
-			IITTrackCollection *iTrackCollection;
-			iLibraryPlaylist->get_Tracks( &iTrackCollection );
-			if( iTrackCollection ){
-				long num;
-				iTrackCollection->get_Count( &num );
-				for( int i=1; i<=num; i++ ){
-					IITTrack *iTrack;
-					iTrackCollection->get_Item( i, &iTrack );
-					if( iTrack ){
-						MENUITEMINFO iteminfo;
-						iteminfo.cbSize = sizeof(iteminfo);
-						iteminfo.fMask = MIIM_STRING | MIIM_ID;
-						iteminfo.wID = ITUNES_TRACK_ID_BASE + i;
-						iTrack->get_Name( &iteminfo.dwTypeData );
-						iteminfo.cch = wcslen( iteminfo.dwTypeData );
-						InsertMenuItem( tracklistmenu, i-1, 1, &iteminfo );
-						iTrack->Release();
-						cnt++;
-					}
-				}
-				iTrackCollection->Release();
-			}
-			iLibraryPlaylist->Release();
+		IITTrack *iTrack;
+		g_miku.iTunes->get_CurrentTrack( &iTrack );
+		if( iTrack ){
+			iTrack->get_Index( id );
+            return *id;
 		}
 	}
-	if( cnt ){
-          MENUINFO menuinfo;
-          memset( &menuinfo, 0, sizeof(menuinfo) );
-          menuinfo.cbSize = sizeof(menuinfo);
-          menuinfo.fMask = MIM_STYLE;
-          menuinfo.dwStyle = MNS_AUTODISMISS | MNS_DRAGDROP;
-          SetMenuInfo( tracklistmenu, &menuinfo );
-
-        WCHAR currenttrackname[1024];
-        memset( currenttrackname, 0, sizeof(currenttrackname) );
-
-		iteminfo.fMask = MIIM_STRING | MIIM_SUBMENU;
-        iteminfo.dwTypeData = L"Track List";
-        iteminfo.cch = wcslen( L"Track List" );
-        iteminfo.hSubMenu = tracklistmenu;
-        if( GetCurrentTrackName( currenttrackname, 1024 ) ){
-			WCHAR buf[BUF_STRING_SIZE];
-			wsprintf( buf, L"%s", currenttrackname );
-            iteminfo.dwTypeData = buf;
-            iteminfo.cch = wcslen( buf );
-        }
-        InsertMenuItem( submenu, 1, 1, &iteminfo );
-        DestroyMenu( tracklistmenu );
-    }
+	return 0;
 }
 
 void AppendTrackList( HMENU submenu )
 {
 	HMENU tracklistmenu;
+	MENUITEMINFO iteminfo;
+	long playlistid;
+	int cnt=0;
+
 	tracklistmenu = CreatePopupMenu();
 	if( tracklistmenu==NULL ) return;
 
-	MENUITEMINFO iteminfo;
-	int cnt=0;
+	GetCurrentTrackPlaylistIndex( &playlistid );
+
 	memset( &iteminfo, 0, sizeof(iteminfo) );
 	iteminfo.cbSize = sizeof(iteminfo);
 
@@ -509,11 +462,15 @@ void AppendTrackList( HMENU submenu )
 					iTrackCollection->get_Item( i, &iTrack );
 					if( iTrack ){
 						MENUITEMINFO iteminfo;
+						memset( &iteminfo, 0, sizeof(iteminfo) );
 						iteminfo.cbSize = sizeof(iteminfo);
-						iteminfo.fMask = MIIM_STRING | MIIM_ID;
+						iteminfo.fMask = MIIM_STRING | MIIM_ID | MIIM_STATE;
 						iteminfo.wID = ITUNES_TRACK_ID_BASE + i;
+						// 再生中のものはハイライトとデフォルトを付ける
+						iteminfo.fState = playlistid==i ? MFS_HILITE|MFS_DEFAULT : 0;
 						iTrack->get_Name( &iteminfo.dwTypeData );
 						iteminfo.cch = wcslen( iteminfo.dwTypeData );
+
 						InsertMenuItem( tracklistmenu, i-1, 1, &iteminfo );
 						iTrack->Release();
 						cnt++;
@@ -525,12 +482,12 @@ void AppendTrackList( HMENU submenu )
 		}
 	}
 	if( cnt ){
-          MENUINFO menuinfo;
-          memset( &menuinfo, 0, sizeof(menuinfo) );
-          menuinfo.cbSize = sizeof(menuinfo);
-          menuinfo.fMask = MIM_STYLE;
-          menuinfo.dwStyle = MNS_AUTODISMISS | MNS_DRAGDROP;
-          SetMenuInfo( tracklistmenu, &menuinfo );
+		MENUINFO info;
+		info.cbSize = sizeof(info);
+		info.cyMax = 400;
+		info.fMask = MIM_MAXHEIGHT | MIM_STYLE;
+		info.dwStyle = MNS_CHECKORBMP;
+		SetMenuInfo( tracklistmenu, &info );
 
         WCHAR currenttrackname[1024];
         memset( currenttrackname, 0, sizeof(currenttrackname) );
@@ -545,16 +502,17 @@ void AppendTrackList( HMENU submenu )
             iteminfo.dwTypeData = buf;
             iteminfo.cch = wcslen( buf );
         }
+
         InsertMenuItem( submenu, 1, 1, &iteminfo );
         DestroyMenu( tracklistmenu );
     }
 }
 
 
-/** コンテキストメニューを表示する.
+/** ポップアップメニューを表示する.
  * @param hwnd 親ウィンドウ
  */
-void ShowContextMenu(HWND hwnd)
+void ShowPopupMenu(HWND hwnd)
 {
     HMENU menu;
     HMENU submenu;
@@ -565,11 +523,11 @@ void ShowContextMenu(HWND hwnd)
     SetMenuDefaultItem( submenu, ID_BTN_WHATTIMEISITNOW, 0 );
 
     AppendTrackList( submenu );
-    //AppendTrackList2( submenu );
 
-    GetCursorPos( &pt );
+	GetCursorPos( &pt );
     TrackPopupMenu( submenu, TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL );
-    DestroyMenu( menu );
+
+	DestroyMenu( menu );
 }
 
 /** ウィンドウタイトルを曲名に変更する.
@@ -586,12 +544,14 @@ void SetWindowTitleToMusicName( HWND hwnd )
         g_miku.iTunes->get_CurrentTrack( &iTrack );
         if( iTrack ){
             BSTR name;
+			BSTR artist;
             WCHAR windowname[BUF_STRING_SIZE];
             iTrack->get_Name( &name );
             wsprintf( windowname, L"%s::%s", name, APP_TITLE );
             SetWindowText( hwnd, windowname );
 
-            wsprintf( windowname, L"%s", name );
+			iTrack->get_Artist( &artist );
+			wsprintf( windowname, L"%s (%s)", name, artist );
             // update tooltip help message.
             UpdateToolTipHelp( windowname );
         }
@@ -604,8 +564,6 @@ void CreateToolTipHelp( HWND hwnd )
 {
     g_miku.hToolTip = CreateWindowEx( 0, TOOLTIPS_CLASS, L"", TTS_ALWAYSTIP,
                                       0, 0, 100,100, hwnd, NULL, g_miku.hInst, NULL );
-    //SetWindowPos(hToolTip,HWND_TOPMOST,0,0,0,0, SWP_NOMOVE | SWP_NOSIZE );
-
     TOOLINFO ti;
     memset( &ti, 0, sizeof(TOOLINFO) );
     ti.cbSize = sizeof(TOOLINFO);
@@ -664,6 +622,7 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
     switch( wparam ){
     case ITEventDatabaseChanged:
+		OutputDebugString( L"ITEventDatabaseChanged\n" );
         break;
 
     case ITEventPlayerPlay:
@@ -676,9 +635,11 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
         break;
 
     case ITEventPlayerPlayingTrackChanged:
+		OutputDebugString( L"ITEventPlayerPlayingTrackChanged\n" );
         break;
 
 	case ITEventUserInterfaceEnabled:
+		OutputDebugString( L"ITEventUserInterfaceEnabled\n" );
 		break;
 
     case ITEventCOMCallsDisabled:
@@ -916,6 +877,11 @@ LRESULT ProcessContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
     return S_OK;
 }
 
+void OnMenuSelect( HWND hwnd, WPARAM wparam, LPARAM lparam )
+{
+	dprintf( L"menu index:%d\n", LOWORD(wparam) );
+	dprintf( L"wparam:%x\n", wparam );
+}
 
 LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
 {
@@ -960,6 +926,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
             GetCursorPos( &point );
             g_miku.pWindow->moveWindow( point.x-g_miku.dragStartX, point.y-g_miku.dragStartY );
         }else{
+			//OutputDebugString( L"WM_MOUSEMOVE\n" );
         }
         break;
     case WM_LBUTTONUP:
@@ -968,12 +935,25 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
         ReleaseCapture();
         break;
 
-    case WM_RBUTTONDOWN:
+	case WM_CONTEXTMENU:
+    //case WM_RBUTTONDOWN:
         // show menu
-        ShowContextMenu( hWnd );
+        ShowPopupMenu( hWnd );
         break;
 
-    case WM_DESTROY:
+	case WM_MENUSELECT:
+		OutputDebugString( L"WM_MENUSELECT\n" );
+		OnMenuSelect( hWnd, wParam, lParam );
+		break;
+
+	case WM_INITMENUPOPUP:
+		OutputDebugString( L"WM_INITMENUPOPUP\n" );
+		break;
+	case WM_UNINITMENUPOPUP:
+		OutputDebugString( L"WM_UNINITMENUPOPUP\n" );
+		break;
+
+	case WM_DESTROY:
         SaveToRegistory();
         PostQuitMessage( 0 );
         break;
