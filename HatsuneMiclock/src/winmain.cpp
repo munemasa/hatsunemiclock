@@ -37,6 +37,7 @@ struct T_MIKU_CONFIG {
 }g_config;
 
 struct T_MIKU_CLOCK {
+	WNDPROC		pWndProc;
 	HINSTANCE	hInst;
 	HWND		hToolTip;
 
@@ -70,6 +71,7 @@ struct T_MIKU_CLOCK {
 DWORD WINAPI thMikuSaysNowTime(LPVOID v);
 void SetWindowTitleToMusicName( HWND hwnd );
 void UpdateToolTipHelp( WCHAR*str );
+LRESULT CALLBACK SubWindowProc( HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam );
 
 
 int dprintf(WCHAR*format,...)
@@ -468,7 +470,12 @@ void ShowPopupMenu(HWND hwnd)
     InsertMenuItem( submenu, 1, 1, &iteminfo );
 
 	GetCursorPos( &pt );
-    TrackPopupMenu( submenu, TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL );
+
+	// subclass
+	//g_miku.pWndProc = (WNDPROC)GetWindowLong( (HWND)submenu, GWLP_WNDPROC );
+	//SetWindowLong( (HWND)submenu, GWLP_WNDPROC, (LONG)SubWindowProc );
+
+    TrackPopupMenuEx( submenu, TPM_LEFTALIGN, pt.x, pt.y, hwnd, NULL );
 
 	DestroyMenu( menu );
 }
@@ -869,15 +876,18 @@ void OnMenuSelect( HWND hwnd, WPARAM wparam, LPARAM lparam )
                 // 最大1000曲までに制限.
 				for( int i=1; i<=num && i<=1000; i++ ){
 					IITTrack *iTrack;
-					iTrackCollection->get_Item( i, &iTrack );
+					iTrackCollection->get_ItemByPlayOrder( i, &iTrack );
+					//iTrackCollection->get_Item( i, &iTrack );
 					if( iTrack ){
 						MENUITEMINFO iteminfo;
 						ZeroMemory( &iteminfo, sizeof(iteminfo) );
 						iteminfo.cbSize = sizeof(iteminfo);
 						iteminfo.fMask = MIIM_STRING | MIIM_ID | MIIM_STATE;
-						iteminfo.wID = ITUNES_TRACK_ID_BASE + i;
+						long idx=0;
+						iTrack->get_Index( &idx );
+						iteminfo.wID = ITUNES_TRACK_ID_BASE + idx;
 						// 再生中のものはハイライトとデフォルトを付ける
-						iteminfo.fState = playlistidx==i ? MFS_HILITE|MFS_DEFAULT : 0;
+						iteminfo.fState = playlistidx==idx ? MFS_HILITE|MFS_DEFAULT : 0;
 						iTrack->get_Name( &iteminfo.dwTypeData );
 						iteminfo.cch = wcslen( iteminfo.dwTypeData );
 
@@ -891,6 +901,7 @@ void OnMenuSelect( HWND hwnd, WPARAM wparam, LPARAM lparam )
 		}
 	}
 }
+
 
 LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
 {
