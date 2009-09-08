@@ -197,7 +197,7 @@ CAPTION "バージョン情報"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
     PUSHBUTTON      "OK",IDYES,82,101,41,20
-    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.2",IDC_STATIC,40,17,127,8
+    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.3",IDC_STATIC,40,17,127,8
     LTEXT           "Programmed by あまの",IDC_STATIC,40,33,65,8
     LTEXT           "「初音ミク」はクリプトン・フューチャー・メディア株式会社の著作物です。\n(C) Crypton Future Media, Inc.",IDC_STATIC,10,62,187,19
 END
