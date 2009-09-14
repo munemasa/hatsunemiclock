@@ -13,6 +13,7 @@
 #define IDR_HOUR05                      107
 #define IDD_NICO_IDPASS                 107
 #define IDR_HOUR06                      108
+#define IDD_PROPPAGE_LARGE              108
 #define IDR_HOUR07                      109
 #define IDR_HOUR08                      110
 #define IDR_HOUR09                      111
@@ -111,8 +112,11 @@
 #define IDC_NOSPEAK                     1018
 #define IDC_EDIT_NOCO_EMAIL             1031
 #define IDC_NICO_PASSWORD               1032
-#define IDC_CHECK1                      1034
 #define IDC_REMEMBERME                  1034
+#define IDC_SOUNDFILE                   1035
+#define IDC_BTN_SELECT_SNDFILE          1036
+#define IDC_NICOIDPASS_SAVE             1041
+#define IDC_CHK_NICOIDPASS_SAVE         1041
 #define ID_MAIN_40001                   40001
 #define ID_40002                        40002
 #define ID_40003                        40003
@@ -139,7 +143,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        196
 #define _APS_NEXT_COMMAND_VALUE         40076
-#define _APS_NEXT_CONTROL_VALUE         1035
+#define _APS_NEXT_CONTROL_VALUE         1042
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

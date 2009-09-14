@@ -42,6 +42,7 @@ struct T_MIKU_CONFIG {
 
 	DWORD speak_type;	// 喋る頻度(0:毎分, 1:毎時, 2:なし)
 
+	std::wstring	nico_notify_sound;
 	std::wstring	nico_id;
 	std::wstring	nico_password;		// ここのパスワードは常時符号化済みのもので.
 	DWORD			nico_autologin;
@@ -255,6 +256,7 @@ void SaveToRegistory()
 	RegSetValueEx( hkey, L"Transparent", 0, REG_DWORD, (BYTE*)&g_config.isTransparent, sizeof(g_config.isTransparent) );
 	RegSetValueEx( hkey, L"DisplayAMPM", 0, REG_DWORD, (BYTE*)&g_config.is12_24, sizeof(g_config.is12_24) );
 	RegSetValueEx( hkey, L"SpeakType", 0, REG_DWORD, (BYTE*)&g_config.speak_type, sizeof(g_config.speak_type) );
+	RegSetValueEx( hkey, L"NicoNotifySound", 0, REG_SZ, (BYTE*)g_config.nico_notify_sound.c_str(), sizeof(WCHAR)*(g_config.nico_notify_sound.length()+1) );
 	RegCloseKey( hkey );
 }
 
@@ -342,6 +344,11 @@ void LoadFromRegistory()
 	err = ReadRegistorySTR( hkey, L"NicoPassword", g_config.nico_password );
 	if( err!=ERROR_SUCCESS ){
 		g_config.nico_password = L"";
+	}
+
+	err = ReadRegistorySTR( hkey, L"NicoNotifySound", g_config.nico_notify_sound );
+	if( err!=ERROR_SUCCESS ){
+		g_config.nico_notify_sound = L"nc11846.mp3";
 	}
 
 	RegCloseKey( hkey );
@@ -716,6 +723,7 @@ void CreateNicoNamaNotify( NicoNamaProgram*program )
 		str = NICO_COMMUNITY_URL + tmp;
 	}
 	notifywin->SetCommunityURL( str );
+	notifywin->setSoundFile( g_config.nico_notify_sound );
 
 	notifywin->Show( program->playsound );
 }
@@ -818,6 +826,8 @@ void SetupSettingDialog( HWND hwnd )
     wsprintf(wstr, L"%d", rate );
     SetDlgItemText( hwnd, IDC_EDIT_TRANSPARENCY, wstr );
 
+	SetDlgItemText( hwnd, IDC_SOUNDFILE, g_config.nico_notify_sound.c_str() );
+
     HWND radio[3];
     radio[0] = GetDlgItem( hwnd, IDC_SPEAK_EVERYMIN );
     radio[1] = GetDlgItem( hwnd, IDC_SPEAK_EVERYHOUR );
@@ -864,6 +874,10 @@ void ApplySetting(HWND hwnd)
     tmp = 256 * tmp / 100;
     if( tmp > 255 ) tmp = 255;
 
+	// notify sound file
+	GetDlgItemText( hwnd, IDC_SOUNDFILE, buf, BUF_STRING_SIZE );
+	g_config.nico_notify_sound = buf;
+
     // check transparency
     if( IsDlgButtonChecked( hwnd, IDC_CHK_TRANSPARENCY )==BST_CHECKED ){
         g_miku.pWindow->setTransparency(tmp);
@@ -902,6 +916,7 @@ void SaveNicoIDPassword()
 	RegSetValueEx( hkey, L"NicoPassword", 0, REG_SZ, (BYTE*)g_config.nico_password.c_str(), sizeof(WCHAR)*(g_config.nico_password.length()+1) );
 	RegSetValueEx( hkey, L"NicoAutoLogin", 0, REG_DWORD, (BYTE*)&g_config.nico_autologin, sizeof(g_config.nico_autologin) );
 	RegCloseKey( hkey );
+	dprintf( L"Niconico account information was saved.\n" );
 }
 
 INT_PTR CALLBACK DlgNicoIDPASSProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
@@ -921,7 +936,7 @@ INT_PTR CALLBACK DlgNicoIDPASSProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 
 	case WM_COMMAND:
         switch(LOWORD(wp)){
-        case IDOK:
+		case IDOK:{
 			WCHAR buf[BUF_STRING_SIZE];
 			GetDlgItemText( hDlgWnd, IDC_EDIT_NOCO_EMAIL, buf, BUF_STRING_SIZE );
 			g_config.nico_id = buf;
@@ -932,13 +947,18 @@ INT_PTR CALLBACK DlgNicoIDPASSProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 				g_config.nico_password = wbuf;
 			}
 			g_config.nico_autologin = IsDlgButtonChecked( hDlgWnd, IDC_REMEMBERME )==BST_CHECKED;
-			SaveNicoIDPassword();
+
+			if( IsDlgButtonChecked( hDlgWnd, IDC_CHK_NICOIDPASS_SAVE )==BST_CHECKED ){
+				// 保存するにチェックがある.
+				SaveNicoIDPassword();
+			}
             EndDialog(hDlgWnd, IDOK);
-            break;
+			break;}
 		case IDCANCEL:
 			EndDialog(hDlgWnd, IDCANCEL);
 			break;
-        default:
+
+		default:
             return FALSE;
         }
 		return TRUE;
@@ -1001,6 +1021,29 @@ INT_PTR CALLBACK DlgSettingProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
         case IDCANCEL:
             EndDialog( hDlgWnd, IDOK );
             break;
+
+		case IDC_BTN_SELECT_SNDFILE:{
+			OPENFILENAME openfile;
+			ZeroMemory( &openfile, sizeof(openfile) );
+			openfile.lStructSize = sizeof(openfile);
+			openfile.hwndOwner = hDlgWnd;
+			openfile.lpstrFilter = L"MP3,WAV\0*.mp3;*.wav\0\0";
+
+			WCHAR buf[BUF_STRING_SIZE];
+			GetDlgItemText( hDlgWnd, IDC_SOUNDFILE, buf, BUF_STRING_SIZE );
+			openfile.lpstrFile = buf;
+			openfile.nMaxFile = BUF_STRING_SIZE;
+			openfile.Flags = OFN_FILEMUSTEXIST | OFN_LONGNAMES;
+
+			if( GetOpenFileName( &openfile ) ){
+				dprintf( L"select: %s\n", buf );
+				SetDlgItemText( hDlgWnd, IDC_SOUNDFILE, buf );
+			}else{
+				dprintf( L"You don't select the file\n" );
+			}
+			return TRUE;
+			break;}
+
         default:
             break;
         }
@@ -1025,6 +1068,7 @@ void NicoNamaLogin( HWND hWnd )
 
 	// SHIFTキー押しながらだと、ログインダイアログを出す.
 	if( (g_miku.nico==NULL && !g_config.nico_autologin) ||
+		(g_config.nico_id.length()==0 || g_config.nico_password.length()==0) ||
 		(GetKeyState(VK_SHIFT)&0x8000) ){
 		INT_PTR dlgret;
 		dlgret = DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_NICO_IDPASS), hWnd, DlgNicoIDPASSProc );
@@ -1034,6 +1078,7 @@ void NicoNamaLogin( HWND hWnd )
 
 	if( g_miku.nico ){
 		dprintf( L" You may already logged in.\n" );
+		MessageBox( hWnd, L"すでに接続済みです。", L"エラー", MB_OK );
 		return;
 	}
 
@@ -1398,8 +1443,8 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		NicoNamaLogin( g_miku.pWindow->getWindowHandle() );
 	}
 
-	tPlaySound( L"d:\\sound\\nc1277.wav" );
-	tPlaySound( L"d:\\sound\\nc11846.mp3" );
+	//tPlaySound( L"d:\\sound\\nc1277.wav" );
+	//tPlaySound( L"d:\\sound\\nc11846.mp3" );
 
 	// Main message loop
     MSG msg = {0};

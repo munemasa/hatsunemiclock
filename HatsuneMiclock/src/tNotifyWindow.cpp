@@ -196,6 +196,7 @@ void tNotifyWindow::SetToolTip( const WCHAR*str )
 
 tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
 {
+	m_soundfilename = L"nc11846.mp3";
 	m_bitmap = NULL;
 	m_parenthwnd = parent;
 	m_bkbrush = CreateSolidBrush( GetSysColor( COLOR_WINDOW ) );
@@ -324,7 +325,7 @@ tNotifyWindow::~tNotifyWindow()
 void tNotifyWindow::Show( bool playsound )
 {
 	if( playsound ){
-		tPlaySound( L"d:\\sound\\nc11846.mp3" );	// test
+		tPlaySound( m_soundfilename.c_str() );
 	}
 	ShowWindow( m_hwnd, SW_SHOW );
 	UpdateWindow( m_hwnd );

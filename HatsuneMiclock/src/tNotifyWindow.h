@@ -24,6 +24,7 @@ class tNotifyWindow {
 
 	std::wstring	m_community_url;
 	std::wstring	m_live_url;
+	std::wstring	m_soundfilename;	// 再生するサウンドファイル名
 
 	void CreateToolTip();
 	void SetToolTip( const WCHAR*str );
@@ -47,6 +48,7 @@ public:
 	inline void SetLiveURL( std::wstring &str ){ m_live_url = str; SetToolTip( str.c_str() ); }
 	inline std::wstring& GetCommunityURL(){ return m_community_url; }
 	inline std::wstring& GetLiveURL(){ return m_live_url; }
+	inline void setSoundFile( std::wstring &str ){ m_soundfilename = str; }
 };
 
 

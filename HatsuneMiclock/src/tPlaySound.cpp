@@ -58,7 +58,7 @@ static void thPlaySound(LPVOID v)
  * 多分、システムが対応していればなんでも再生できると思う。
  * @param file wavでもmp3でもファイル名を渡す.
  */
-int tPlaySound( wchar_t*file )
+int tPlaySound( const wchar_t*file )
 {
 	// 面倒な終了処理を回避するためthread and wait再生で.
 	wchar_t *filename = (wchar_t*)calloc( wcslen(file)+1, sizeof(wchar_t) );
