@@ -1,89 +1,96 @@
-#define _WIN32_WINNT	0x0500
-
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
-#include <windows.h>
-#include <windowsx.h>
-#include <commctrl.h>
-#include <mmsystem.h>
+//#define _WIN32_WINNT	0x0500
+#include "winheader.h"
+#include <string>
+#include <process.h>
+#include <gdiplus.h>
+using namespace Gdiplus;
 
 #include "tWindow.h"
 #include "iTunesLib.h"
+#include "tNetwork.h"
+#include "tNotifyWindow.h"
+#include "udmessages.h"
+#include "niconamaalert.h"
+#include "stringlib.h"
+
 #include "../resource.h"
 
+#include "debug.h"
+
+#pragma comment(lib,"gdiplus.lib")
 #pragma comment(lib,"winmm.lib")		// windows multimedia
 #pragma comment(lib,"comctl32.lib")		// common control
-
 #pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 
 #define APP_TITLE				L"Hatsune Miclock"
-#define BUF_STRING_SIZE			(4096)		// 文字列バッファサイズ(NUL文字込みで)
 #define REG_SUBKEY				L"Software\\Miku39.jp\\HatsuneMiclock"
+
+#define BUF_STRING_SIZE			(4096)		// 文字列バッファの最大文字列長(NUL文字込みで)
 #define ITUNES_TRACK_ID_BASE	(50000)
 
 
+
 struct T_MIKU_CONFIG {
-	DWORD winx, winy;		// position of window.
+	DWORD winx, winy;   // ウィンドウ座標.
 
-	DWORD isTopMost;
-	DWORD is12_24;
-	DWORD isTransparent;
-	DWORD trans_rate;	// 0-255 (0:transparent, 255:non-transparent)
+	DWORD isTopMost;    // 最前面に表示.
+	DWORD is12_24;      // 12時間表記かどうか.
+	DWORD isTransparent;// 透過表示.
+	DWORD trans_rate;	// 透過率 0-255 (0:透明, 255:非透明)
 
-	DWORD speak_type;	// 0:every min, 1:every hour, 2:no speak
+	DWORD speak_type;	// 喋る頻度(0:毎分, 1:毎時, 2:なし)
+
+	std::wstring	nico_id;
+	std::wstring	nico_password;		// ここのパスワードは常時符号化済みのもので.
+	DWORD			nico_autologin;
 }g_config;
 
 struct T_MIKU_CLOCK {
-	WNDPROC		pWndProc;
-	HINSTANCE	hInst;
-	HWND		hToolTip;
+	WNDPROC		pOldWndProc;
+	HINSTANCE	hInst;      // アプリケーションのインスタンス.
+	HWND		hToolTip;   // ツールチップのウィンドウハンドル.
+	std::wstring cmdline;	// コマンドラインオプション.
+	ULONG_PTR	gdiplusToken;	// GDI+のトークン.
+
+	tWindow		*pWindow;   // 自身のウィンドウ.
 
 	HANDLE		sayevent;
-	DWORD		thid;
-	tWindow		*pWindow;
+	DWORD		thid;       // 時刻を話すスレッドID
 
-	HBITMAP     hMiku;	// handle of Miku image.
-	int			w,h;	// size of Miku image.
+	HBITMAP     hMiku;	    // ミク画像のハンドル.
+	int			w,h;	    // ミク画像のサイズ.
 
-	HBITMAP		hBoard;	// clock board image.
-	int			bx,by;	// position of drawing clock board.
-	int			bw,bh;
+	HBITMAP		hBoard;	    // 時刻板画像のハンドル.
+	int			bx,by;	    // 時刻板を書く座標.
+	int			bw,bh;      // 時刻板のサイズ.
 
-	HFONT		hFont;	// font of drawing time.
-	int			fx,fy;	// position of clock text.
+	HFONT		hFont;	    // 時刻を書くフォント.
+	int			fx,fy;	    // 時刻を書く座標.
 
-	int			hour,min,sec;	// current time.
+	int			hour,min,sec;   // 現在時刻.
 	int			oldhour,oldmin;
 
-	bool		inDrag;		// now in dragging.
-	int			dragStartX, dragStartY;
+	bool		inDrag;		// ドラッグ中であるか.
+	int			dragStartX, dragStartY; // ドラッグを開始した座標.
 
-	bool		inSpeak;	// now in speaking.
+	bool		inSpeak;	// 現在時刻を喋り中.
 
-	IiTunes		*iTunes;
-	DWORD		iTunesEndTime;
+	IiTunes			*iTunes;        // iTunes COMのインスタンス.
+	DWORD			iTunesEndTime;  // iTunesが終了する時刻.
+	long			iTunesVolume;   // iTunesのボリューム.
+	std::wstring	currentmusic;
+	std::wstring	currentartist;
+
+	NicoNamaAlert	*nico;
 } g_miku;
 
 
 DWORD WINAPI thMikuSaysNowTime(LPVOID v);
 void SetWindowTitleToMusicName( HWND hwnd );
-void UpdateToolTipHelp( WCHAR*str );
+void UpdateToolTipHelp( WCHAR*str,... );
 LRESULT CALLBACK SubWindowProc( HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam );
 
-
-int dprintf(WCHAR*format,...)
-{
-	va_list list;
-	va_start( list, format );
-	int r;
-	WCHAR buf[BUF_STRING_SIZE];
-	r = wvsprintf(buf, format, list);
-	OutputDebugString(buf);
-	return r;
-}
 
 /** 初音ミクロックの初期化.
  * ライブラリ、スレッド、ワークの初期化を行う.
@@ -95,17 +102,18 @@ void InitMikuClock()
 	ZeroMemory( &g_miku, sizeof(g_miku) );
 
 	TCHAR buf[BUF_STRING_SIZE];
+	ZeroMemory( buf, sizeof(buf) );
 
     // position of text.
-	LoadString( GetModuleHandle(NULL), IDS_TEXT_XPOSITION, buf, sizeof(BUF_STRING_SIZE) );
+	LoadString( GetModuleHandle(NULL), IDS_TEXT_XPOSITION, buf, BUF_STRING_SIZE-1 );
 	g_miku.fx = _wtoi(buf);
-	LoadString( GetModuleHandle(NULL), IDS_TEXT_YPOSITION, buf, sizeof(BUF_STRING_SIZE) );
+	LoadString( GetModuleHandle(NULL), IDS_TEXT_YPOSITION, buf, BUF_STRING_SIZE-1 );
 	g_miku.fy = _wtoi(buf);
 
     // position of clock board.
-	LoadString( GetModuleHandle(NULL), IDS_BOARD_XPOSITION, buf, sizeof(BUF_STRING_SIZE) );
+	LoadString( GetModuleHandle(NULL), IDS_BOARD_XPOSITION, buf, BUF_STRING_SIZE-1 );
 	g_miku.bx = _wtoi(buf);
-	LoadString( GetModuleHandle(NULL), IDS_BOARD_YPOSITION, buf, sizeof(BUF_STRING_SIZE) );
+	LoadString( GetModuleHandle(NULL), IDS_BOARD_YPOSITION, buf, BUF_STRING_SIZE-1 );
 	g_miku.by = _wtoi(buf);
 
 	// speaking event
@@ -121,21 +129,57 @@ void InitMikuClock()
 	INITCOMMONCONTROLSEX ic;
 	ic.dwSize = sizeof(INITCOMMONCONTROLSEX);
 	ic.dwICC = ICC_UPDOWN_CLASS | ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES;
-	InitCommonControlsEx(&ic); 
+	InitCommonControlsEx(&ic);
+
+	WinsockInit();
+
+	GdiplusStartupInput gdiplusStartupInput;
+	GdiplusStartup(&g_miku.gdiplusToken, &gdiplusStartupInput, NULL);
 }
 
 /** 初音ミクロックの後片付け.
- * iTunesから切断したり.
  * WinMainの最後で呼ぶ.
  */
 void ExitMikuClock()
 {
+	GdiplusShutdown( g_miku.gdiplusToken );
+
+	WinsockUninit();
+
 	DisconnectITunesEvent();
-	if( g_miku.iTunes ) g_miku.iTunes->Release();
+	SAFE_RELEASE( g_miku.iTunes );
 
 	CloseHandle( g_miku.sayevent );
 	CoUninitialize();
 }
+
+// アプリケーショントップレベルウィンドウ作成後に呼ぶ.
+void RegisterTaskTrayIcon()
+{
+	NOTIFYICONDATA trayicon;
+	ZeroMemory( &trayicon, sizeof(trayicon) );
+	trayicon.cbSize = sizeof(trayicon);
+	trayicon.hWnd = g_miku.pWindow->getWindowHandle();
+	trayicon.uID = 0;
+	trayicon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+	wcscpy( trayicon.szTip, L"初音ミクロック" );
+	trayicon.hIcon = LoadIcon( g_miku.hInst, MAKEINTRESOURCE(IDI_TASKTRAYICON) );
+	trayicon.uCallbackMessage = WM_TTRAY_POPUP;
+	trayicon.uVersion = NOTIFYICON_VERSION;
+
+	Shell_NotifyIcon( NIM_ADD, &trayicon );
+}
+
+// ウィンドウを削除する前に呼ぶ.
+void UnregisterTaskTrayIcon()
+{
+	NOTIFYICONDATA ttray;
+	ZeroMemory( &ttray, sizeof(ttray) );
+	ttray.cbSize = sizeof(ttray);
+	ttray.hWnd = g_miku.pWindow->getWindowHandle();
+	Shell_NotifyIcon( NIM_DELETE, &ttray );
+}
+
 
 /** リソースからミク画像をロードする.
  */
@@ -156,7 +200,8 @@ void LoadMikuImage()
 }
 
 /** ウィンドウリージョンを画像の型にする.
- * this must be called after LoadMikuImage() function.
+ * LoadMikuImage()の後に呼ばなくてはならない.
+ * @param hwnd リージョン設定するウィンドウ.
  */
 void SetMikuWindowRegion(HWND hwnd)
 {
@@ -191,7 +236,7 @@ void SetMikuWindowRegion(HWND hwnd)
 	ReleaseDC( hwnd, hdc );
 }
 
-/** 設定項目をレジストリに保存する.
+/** 設定ダイアログの設定項目をレジストリに保存する.
  */
 void SaveToRegistory()
 {
@@ -221,7 +266,24 @@ LSTATUS ReadRegistoryDW( HKEY hkey, WCHAR*entry, DWORD*data )
 	return RegQueryValueEx( hkey, entry, 0, &type, (BYTE*)data, &size );
 }
 
-/** レジストリから設定項目をロードする.
+LSTATUS ReadRegistorySTR( HKEY hkey, WCHAR*entry, std::wstring &str )
+{
+	LSTATUS r;
+	DWORD type, size;
+
+	type = REG_SZ;
+	RegQueryValueEx( hkey, entry, 0, &type, NULL, &size );
+	if( size==0 ) return !ERROR_SUCCESS;
+
+	// sizeは単位バイトだけどそのまま使用してもサイズ的に困らないし.
+	WCHAR *buf = new WCHAR[ size ];
+	r = RegQueryValueEx( hkey, entry, 0, &type, (BYTE*)buf, &size );
+	str = buf;
+	delete [] buf;
+	return r;
+}
+
+/** レジストリから設定項目を全てロードする.
  */
 void LoadFromRegistory()
 {
@@ -266,6 +328,21 @@ void LoadFromRegistory()
 		g_config.speak_type = 0;
 	}
 
+	err = ReadRegistoryDW( hkey, L"NicoAutoLogin", &g_config.nico_autologin );
+	if( err!=ERROR_SUCCESS ){
+		g_config.nico_autologin = false;
+	}
+
+	err = ReadRegistorySTR( hkey, L"NicoEMail", g_config.nico_id );
+	if( err!=ERROR_SUCCESS ){
+		g_config.nico_id = L"";
+	}
+
+	err = ReadRegistorySTR( hkey, L"NicoPassword", g_config.nico_password );
+	if( err!=ERROR_SUCCESS ){
+		g_config.nico_password = L"";
+	}
+
 	RegCloseKey( hkey );
 
     if( g_config.trans_rate < 10 ) g_config.trans_rate = 10;
@@ -275,6 +352,8 @@ void LoadFromRegistory()
 }
 
 /** ミクを描く.
+ * 時計も描く.
+ * どんな環境でも動くようにひたすらBitBlt.
  * @param hdc 描画先のデバイスコンテキスト
  */
 void DrawMiku(HDC hdc)
@@ -304,11 +383,13 @@ void DrawMiku(HDC hdc)
 }
 
 /** iTunesを探して接続する.
+ * 時刻更新処理と一緒に呼ばれている.
  * @param hwnd iTunesEventを受けとるウィンドウ
  */
 void FindITunes( HWND hwnd )
 {
 	if( g_miku.iTunes==NULL && FindITunes() ){
+        // 終了中のiTunesを見つけないようにテキトーな手段で弾く.
 		if( GetTickCount() - g_miku.iTunesEndTime < 10*1000 ) return;
 		CreateITunesCOM( &g_miku.iTunes, hwnd );
 		ConnectITunesEvent( g_miku.iTunes );
@@ -331,17 +412,19 @@ void UpdateMikuClock()
 }
 
 /** 音声再生スレッド.
+ * ここでのCRTは使用禁止.
  */
 DWORD WINAPI thMikuSaysNowTime(LPVOID v)
 {
-	volatile int hour;
-	volatile int min;
-	static int harray[24] = {
-		IDR_HOUR00, IDR_HOUR01, IDR_HOUR02, IDR_HOUR03, IDR_HOUR04, IDR_HOUR05,	IDR_HOUR06, IDR_HOUR07, IDR_HOUR08, IDR_HOUR09,
-		IDR_HOUR10, IDR_HOUR11,	IDR_HOUR12, IDR_HOUR13, IDR_HOUR14, IDR_HOUR15, IDR_HOUR16, IDR_HOUR17,	IDR_HOUR18, IDR_HOUR19,
-		IDR_HOUR20, IDR_HOUR21, IDR_HOUR22, IDR_HOUR23,
+	int hour;
+	int min;
+	static const int harray[24] = {
+		IDR_HOUR00, IDR_HOUR01, IDR_HOUR02, IDR_HOUR03, IDR_HOUR04, IDR_HOUR05,
+		IDR_HOUR06,	IDR_HOUR07, IDR_HOUR08, IDR_HOUR09,	IDR_HOUR10, IDR_HOUR11,
+		IDR_HOUR12, IDR_HOUR13,	IDR_HOUR14, IDR_HOUR15, IDR_HOUR16, IDR_HOUR17,
+		IDR_HOUR18, IDR_HOUR19,	IDR_HOUR20, IDR_HOUR21, IDR_HOUR22, IDR_HOUR23,
 	};
-	static int marray[60] = {
+	static const int marray[60] = {
 		IDR_MIN00, IDR_MIN01, IDR_MIN02, IDR_MIN03, IDR_MIN04, IDR_MIN05, IDR_MIN06, IDR_MIN07, IDR_MIN08, IDR_MIN09,
 		IDR_MIN10, IDR_MIN11, IDR_MIN12, IDR_MIN13, IDR_MIN14, IDR_MIN15, IDR_MIN16, IDR_MIN17, IDR_MIN18, IDR_MIN19,
 		IDR_MIN20, IDR_MIN21, IDR_MIN22, IDR_MIN23, IDR_MIN24, IDR_MIN25, IDR_MIN26, IDR_MIN27, IDR_MIN28, IDR_MIN29,
@@ -366,6 +449,7 @@ DWORD WINAPI thMikuSaysNowTime(LPVOID v)
 		}
 	}
 	ExitThread(0);
+	return 0;
 }
 
 /** 現在時刻を喋らせる.
@@ -417,30 +501,33 @@ WCHAR*GetCurrentTrackName( WCHAR*out, int n )
 			iTrack->get_Name( &name );
 			ZeroMemory( out, sizeof(WCHAR)*n );
 			wcsncpy( out, name, n-1 );
-			iTrack->Release();
+			SAFE_RELEASE( iTrack );
             return out;
 		}
 	}
 	return NULL;
 }
 
+/** 現在再生中の曲インデックスを取得.
+ */
 long GetCurrentTrackPlaylistIndex( long *id )
 {
+    *id = -1;
 	if( g_miku.iTunes ){
 		IITTrack *iTrack;
 		g_miku.iTunes->get_CurrentTrack( &iTrack );
 		if( iTrack ){
 			iTrack->get_Index( id );
-            return *id;
+			SAFE_RELEASE( iTrack );
 		}
 	}
-	return 0;
+	return *id;
 }
 
 /** ポップアップメニューを表示する.
  * @param hwnd 親ウィンドウ
  */
-void ShowPopupMenu(HWND hwnd)
+LRESULT ShowPopupMenu(HWND hwnd)
 {
     HMENU menu;
     HMENU submenu;
@@ -459,62 +546,80 @@ void ShowPopupMenu(HWND hwnd)
     ZeroMemory( currenttrackname, sizeof(currenttrackname) );
 	iteminfo.fMask = MIIM_STRING | MIIM_SUBMENU;
     iteminfo.dwTypeData = L"Track List";
-    iteminfo.cch = wcslen( L"Track List" );
+    iteminfo.cch = (UINT)wcslen( L"Track List" );
     iteminfo.hSubMenu = tracklistmenu;
     if( GetCurrentTrackName( currenttrackname, 1024 ) ){
 		WCHAR buf[BUF_STRING_SIZE];
 		wsprintf( buf, L"%s", currenttrackname );
         iteminfo.dwTypeData = buf;
-        iteminfo.cch = wcslen( buf );
+        iteminfo.cch = (UINT)wcslen( buf );
     }
     InsertMenuItem( submenu, 1, 1, &iteminfo );
 
 	GetCursorPos( &pt );
 
-	// subclass
-	//g_miku.pWndProc = (WNDPROC)GetWindowLong( (HWND)submenu, GWLP_WNDPROC );
-	//SetWindowLong( (HWND)submenu, GWLP_WNDPROC, (LONG)SubWindowProc );
-
     TrackPopupMenuEx( submenu, TPM_LEFTALIGN, pt.x, pt.y, hwnd, NULL );
 
 	DestroyMenu( menu );
+	return 0;
 }
 
+
 /** ウィンドウタイトルを再生中の曲名に変更する.
+ * iTunesで再生開始されたときに呼び出される。
  * @param hwnd 変更するウィンドウ
  */
 void SetWindowTitleToMusicName( HWND hwnd )
 {
+	g_miku.currentartist = L"";
+	g_miku.currentmusic = L"";
     if( g_miku.iTunes ){
         IITTrack *iTrack;
         ITPlayerState playerState;
 
         g_miku.iTunes->get_PlayerState( &playerState );
-        if( playerState==ITPlayerStateStopped ) return;
+		if( playerState==ITPlayerStateStopped )	return;	// 再生していない.
 
         g_miku.iTunes->get_CurrentTrack( &iTrack );
         if( iTrack ){
-            BSTR name;
-			BSTR artist;
+            BSTR name, artist;
             WCHAR windowname[BUF_STRING_SIZE];
-            iTrack->get_Name( &name );
-            wsprintf( windowname, L"%s::%s", name, APP_TITLE );
-            SetWindowText( hwnd, windowname );
 
-			iTrack->get_Artist( &artist );
-			wsprintf( windowname, L"%s (%s)", name, artist );
+			// update window title.
+            iTrack->get_Name( &name );
+			if( name ){
+				g_miku.currentmusic = name;
+				wsprintf( windowname, L"%s::%s", name, APP_TITLE );
+				SetWindowText( hwnd, windowname );
+			}else{
+				// 曲名がないとな.
+				SetWindowText( hwnd, APP_TITLE );
+				g_miku.currentmusic = L"";
+			}
+
             // update tooltip help message.
-            UpdateToolTipHelp( windowname );
+			iTrack->get_Artist( &artist );
+			if( artist ){
+				g_miku.currentartist = artist;
+				UpdateToolTipHelp( L"%s (%s)", g_miku.currentmusic.c_str(), artist );
+			}else{
+				UpdateToolTipHelp( L"%s", g_miku.currentmusic.c_str() );
+				g_miku.currentartist = L"";
+			}
+
+			SAFE_RELEASE( iTrack );
         }
     }
 }
+
 
 /** ツールチップを作成する.
  * @param hwnd 親ウィンドウハンドル
  */
 void CreateToolTipHelp( HWND hwnd )
 {
-    g_miku.hToolTip = CreateWindowEx( 0, TOOLTIPS_CLASS, L"", TTS_ALWAYSTIP,
+	DWORD dwStyle = TTS_ALWAYSTIP | TTS_NOPREFIX | TTS_BALLOON;
+    g_miku.hToolTip = CreateWindowEx( 0, TOOLTIPS_CLASS, L"", dwStyle,
                                       0, 0, 100,100, hwnd, NULL, g_miku.hInst, NULL );
     TOOLINFO ti;
     ZeroMemory( &ti, sizeof(TOOLINFO) );
@@ -532,18 +637,26 @@ void CreateToolTipHelp( HWND hwnd )
     SendMessage( g_miku.hToolTip, TTM_SETDELAYTIME, TTDT_INITIAL, (LPARAM)MAKELONG(100, 0) );
 }
 
+
 /** ツールチップヘルプメッセージを更新する.
  */
-void UpdateToolTipHelp( WCHAR*str )
+void UpdateToolTipHelp( WCHAR*str,... )
 {
-    LRESULT lResult;
+	va_list list;
+	va_start( list, str );
+	int r;
+	WCHAR buf[8192];
+	r = wvsprintf(buf, str, list);
+    va_end( list );
+
+	LRESULT lResult;
     TOOLINFO ti;
     ZeroMemory( &ti, sizeof(TOOLINFO) );
     ti.cbSize = sizeof(TOOLINFO);
     ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
     ti.hwnd = g_miku.hToolTip;
     ti.hinst = g_miku.hInst;
-    ti.lpszText = str;
+    ti.lpszText = buf;
     ti.uId = (UINT_PTR)g_miku.pWindow->getWindowHandle();
     ti.rect.left = 0;
     ti.rect.right = 100;
@@ -553,7 +666,7 @@ void UpdateToolTipHelp( WCHAR*str )
 }
 
 /// 再生とポーズを切り替える.
-void iTunesPlayOrStop()
+LRESULT iTunesPlayOrStop()
 {
     if( g_miku.iTunes ){
         ITPlayerState playerState;
@@ -564,11 +677,66 @@ void iTunesPlayOrStop()
             g_miku.iTunes->Pause();
         }
     }
+	return 0;
+}
+
+/** ニコ生アラートを表示する.
+ * @param program 放送についてのの情報(アラート表示中、保持する必要ないので即捨てて良し)
+ */
+void CreateNicoNamaNotify( NicoNamaProgram*program )
+{
+	tNotifyWindow *notifywin = new tNotifyWindow( g_miku.hInst, g_miku.pWindow->getWindowHandle() );
+	dprintf( L"Create tNotifyWindow %p\n", notifywin );
+
+	std::wstring str;
+
+	std::string s;
+	s = program->community + " - " + program->community_name;
+	strtowstr( s, str );
+	notifywin->SetWindowTitle( str );
+
+	strtowstr( program->title, str );
+	notifywin->SetTitle( str );
+
+	strtowstr( program->description, str );
+	notifywin->SetDescription( str );
+
+	notifywin->SetThumbnail( program->thumbnail_image, program->thumbnail_image_size ); 
+
+	std::wstring tmp;
+	strtowstr( program->request_id, tmp );
+	str = NICO_LIVE_URL + tmp;
+	notifywin->SetLiveURL( str );
+
+	strtowstr( program->community, tmp );
+	if( tmp.find( L"ch",0 )!=std::wstring::npos ){
+		str = NICO_CHANNEL_URL + tmp;
+	}else{
+		str = NICO_COMMUNITY_URL + tmp;
+	}
+	notifywin->SetCommunityURL( str );
+
+	notifywin->Show();
+}
+
+LRESULT OnNicoNamaNotify( HWND hwnd, WPARAM wparam, LPARAM lparam )
+{
+	switch( wparam ){
+	case NNA_REQUEST_CREATEWINDOW:
+		CreateNicoNamaNotify( (NicoNamaProgram*)lparam );
+		break;
+	case NNA_CLOSED_NOTIFYWINDOW:
+		if( g_miku.nico ) g_miku.nico->ShowNextNotifyWindow();
+		break;
+	default:
+		break;
+	}
+	return 0;
 }
 
 /** iTunesイベントの処理.
  */
-void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
+LRESULT OnITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
     switch( wparam ){
     case ITEventDatabaseChanged:
@@ -576,10 +744,12 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
         break;
 
     case ITEventPlayerPlay:
+		dprintf( L"ITEventPlayerPlay\n" );
         SetWindowTitleToMusicName( hwnd );
         break;
 
     case ITEventPlayerStop:
+		dprintf( L"ITEventPlayerStop\n" );
         SetWindowText( hwnd, APP_TITLE );
         UpdateToolTipHelp(L"");
         break;
@@ -600,10 +770,7 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
         UpdateToolTipHelp(L"");
 
         DisconnectITunesEvent();
-        if( g_miku.iTunes ){
-            g_miku.iTunes->Release();
-            g_miku.iTunes = NULL;
-        }
+		SAFE_RELEASE( g_miku.iTunes );
         break;
 
     case ITEventCOMCallsEnabled:
@@ -611,17 +778,21 @@ void ProcessITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
         break;
 
     case ITEventQuitting:
+		dprintf( L"ITEventQuitting\n" );
         break;
 
     case ITEventAboutToPromptUserToQuit:
+		dprintf( L"ITEventAboutToPromptUserToQuit\n" );
         break;
 
     case ITEventSoundVolumeChanged:
+		dprintf( L"ITEventSoundVolumeChanged\n" );
         break;
 
     default:
         break;
     }
+	return 0;
 }
 
 /** 設定ダイアログに現状を反映させる.
@@ -722,6 +893,70 @@ void ApplySetting(HWND hwnd)
 
     SaveToRegistory();
 }
+void SaveNicoIDPassword()
+{
+	HKEY hkey;
+	RegCreateKeyEx( HKEY_CURRENT_USER, REG_SUBKEY, 0, L"", REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hkey, NULL );
+	RegSetValueEx( hkey, L"NicoEMail",    0, REG_SZ, (BYTE*)g_config.nico_id.c_str(),       sizeof(WCHAR)*(g_config.nico_id.length()+1) );
+	RegSetValueEx( hkey, L"NicoPassword", 0, REG_SZ, (BYTE*)g_config.nico_password.c_str(), sizeof(WCHAR)*(g_config.nico_password.length()+1) );
+	RegSetValueEx( hkey, L"NicoAutoLogin", 0, REG_DWORD, (BYTE*)&g_config.nico_autologin, sizeof(g_config.nico_autologin) );
+	RegCloseKey( hkey );
+}
+
+INT_PTR CALLBACK DlgNicoIDPASSProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	HWND parts;
+	switch(msg){
+    case WM_INITDIALOG:
+		parts = GetDlgItem( hDlgWnd, IDC_REMEMBERME );
+		Button_SetCheck( parts, g_config.nico_autologin );
+		SetDlgItemText( hDlgWnd, IDC_EDIT_NOCO_EMAIL, g_config.nico_id.c_str() );
+		{
+			std::wstring buf = g_config.nico_password;
+			rot47( buf );	// decode
+			SetDlgItemText( hDlgWnd, IDC_NICO_PASSWORD, buf.c_str() );
+		}
+        return TRUE;
+
+	case WM_COMMAND:
+        switch(LOWORD(wp)){
+        case IDOK:
+			WCHAR buf[BUF_STRING_SIZE];
+			GetDlgItemText( hDlgWnd, IDC_EDIT_NOCO_EMAIL, buf, BUF_STRING_SIZE );
+			g_config.nico_id = buf;
+			GetDlgItemText( hDlgWnd, IDC_NICO_PASSWORD, buf, BUF_STRING_SIZE );
+			{
+				std::wstring wbuf = buf;
+				rot47( wbuf );	// encode
+				g_config.nico_password = wbuf;
+			}
+			g_config.nico_autologin = IsDlgButtonChecked( hDlgWnd, IDC_REMEMBERME )==BST_CHECKED;
+			SaveNicoIDPassword();
+            EndDialog(hDlgWnd, IDOK);
+            break;
+		case IDCANCEL:
+			EndDialog(hDlgWnd, IDCANCEL);
+			break;
+        default:
+            return FALSE;
+        }
+		return TRUE;
+
+	case WM_KEYDOWN:
+		if( wp==VK_RETURN ){
+	        PostMessage( hDlgWnd, WM_COMMAND, IDOK, 0 );
+		}
+		break;
+
+	case WM_CLOSE:
+        PostMessage( hDlgWnd, WM_COMMAND, IDCANCEL, 0 );
+        return TRUE;
+
+	default:
+		return FALSE;
+	}
+	return TRUE;
+}
 
 INT_PTR CALLBACK DlgAboutProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
@@ -781,7 +1016,68 @@ INT_PTR CALLBACK DlgSettingProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
     return TRUE;
 }
 
-LRESULT ProcessContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
+/** ニコ生のコメントサーバに接続する.
+ */
+void NicoNamaLogin( HWND hWnd )
+{
+	std::string userid, userpassword;
+
+	if( g_miku.nico ){
+		dprintf( L" You may already logged in.\n" );
+		return;
+	}
+
+	// SHIFTキー押しながらだと、ログインダイアログを出す.
+	if( !g_config.nico_autologin || (GetKeyState(VK_SHIFT)&0x8000) ){
+		INT_PTR dlgret;
+		dlgret = DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_NICO_IDPASS), hWnd, DlgNicoIDPASSProc );
+		if( dlgret==IDCANCEL ) return;
+	}
+
+#if 0
+	std::vector<std::string> argv;
+	std::vector<std::string>::iterator it;
+	std::string s;
+
+    // 仮でコマンドラインパラメータ /user:your@example.com:password で指定.
+	wstrtostr( g_miku.cmdline, s );
+	argv = split( s, std::string(" ") );
+	for( it=argv.begin(); it!=argv.end(); it++ ){
+		if( (*it).find( "/user", 0 )!=std::string::npos ){
+			std::vector<std::string> param;
+			param = split( *it, std::string(":") );
+			userid = param[1];
+			userpassword = param[2];
+		}
+	}
+#endif
+
+	g_miku.nico = new NicoNamaAlert( g_miku.hInst, g_miku.pWindow->getWindowHandle() );
+	//g_miku.nico->setDisplayType( NicoNamaAlert::NNA_BALLOON );
+	g_miku.nico->setDisplayType( NicoNamaAlert::NNA_WINDOW );
+
+	wstrtostr( g_config.nico_id, userid );
+	wstrtostr( g_config.nico_password, userpassword );
+	rot47( userpassword );	// 復号化.
+	int r = g_miku.nico->Auth( userid.c_str(), userpassword.c_str() );
+	if( r<0 ){
+		dprintf( L"Failed NicoAuth\n" );
+		SAFE_DELETE( g_miku.nico );
+		g_config.nico_autologin = 0;
+		MessageBox( hWnd, L"認証に失敗しました。\nメールアドレスかパスワードが間違っています。", L"認証の失敗", MB_OK );
+		return;
+	}
+
+	if( g_miku.nico->connectCommentServer()==0 ){
+		dprintf( L"Logged in to Niconama.\n" );
+		_beginthread( thNicoNamaAlert, 0, g_miku.nico );
+	}else{
+		SAFE_DELETE( g_miku.nico );
+		MessageBox( hWnd, L"コメントサーバに接続できませんでした。", L"接続の失敗", MB_OK );
+	}
+}
+
+LRESULT OnContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 {
     WORD id = LOWORD(wParam);
     switch( id ){
@@ -800,7 +1096,12 @@ LRESULT ProcessContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
     case ID_BTN_WHATTIMEISITNOW:
         SpeakMiku();
         break;
-    default:
+
+	case ID_BTN_NOCOLOGIN:
+		NicoNamaLogin( hWnd );
+		break;
+
+	default:
         if( id>ITUNES_TRACK_ID_BASE ){
             IITPlaylist *iPlaylist;
 
@@ -808,21 +1109,20 @@ LRESULT ProcessContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 
             id -= ITUNES_TRACK_ID_BASE;
             g_miku.iTunes->get_CurrentPlaylist( &iPlaylist );
-            if( iPlaylist ){
-                IITTrackCollection *iTrackCollection;
-                iPlaylist->get_Tracks( &iTrackCollection );
-                if( iTrackCollection ){
-                    IITTrack *iTrack;
-                    iTrackCollection->get_Item( id, &iTrack );
-                    if( iTrack ){
-                        iTrack->Play();
-                        iTrack->Release();
-                    }
-                    iTrackCollection->Release();
-                }
-                iPlaylist->Release();
-            }
+            if( iPlaylist==NULL ) break;
 
+			IITTrackCollection *iTrackCollection;
+            iPlaylist->get_Tracks( &iTrackCollection );
+            if( iTrackCollection ){
+                IITTrack *iTrack;
+                iTrackCollection->get_Item( id, &iTrack );
+                if( iTrack ){
+                    iTrack->Play();
+                    SAFE_RELEASE( iTrack );
+                }
+                SAFE_RELEASE( iTrackCollection );
+            }
+            SAFE_RELEASE( iPlaylist );
         }
         break;
     }
@@ -831,31 +1131,32 @@ LRESULT ProcessContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 
 /** ポップアップメニューが選択されているときの処理.
  */
-void OnMenuSelect( HWND hwnd, WPARAM wparam, LPARAM lparam )
+LRESULT OnMenuSelect( HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
-	dprintf( L"menu index:%d\n", LOWORD(wparam) );
-	dprintf( L"wparam:%x\n", wparam );
-
 	HMENU menu = (HMENU)lparam;
 	int idx = LOWORD(wparam);
 	int flg = HIWORD(wparam);
+#if 0
+	dprintf( L"menu index:%d\n", idx );
+	dprintf( L"wparam:%x\n", wparam );
+#endif
 	if( idx==1 && (flg & MF_POPUP) ){
         /* idx==1 (Track List) が選択されたら、
          * 現在のプレイリストでサブメニュー項目を構築する.
          */
 		HMENU tracklistmenu = GetSubMenu( menu, idx );
-		if( g_miku.iTunes==NULL ) return;
-		if( tracklistmenu==NULL ) return;
+		if( g_miku.iTunes==NULL ) return 0;
+		if( tracklistmenu==NULL ) return 0;
 		if( GetMenuItemCount(tracklistmenu)!=0 ){
             dprintf( L"Tracklist was already created.\n" );
-            return;
+            return 0;
         }
 
         // メニューの高さをスクリーン高の半分に制限.
         MENUINFO info;
 		ZeroMemory( &info, sizeof(info) );
         info.cbSize = sizeof(info);
-        info.cyMax = GetSystemMetrics( SM_CYSCREEN ) / 2;   //400;
+        info.cyMax = GetSystemMetrics( SM_CYSCREEN ) / 2;
         info.fMask = MIM_MAXHEIGHT;
         SetMenuInfo( tracklistmenu, &info );
 
@@ -889,48 +1190,135 @@ void OnMenuSelect( HWND hwnd, WPARAM wparam, LPARAM lparam )
 						// 再生中のものはハイライトとデフォルトを付ける
 						iteminfo.fState = playlistidx==idx ? MFS_HILITE|MFS_DEFAULT : 0;
 						iTrack->get_Name( &iteminfo.dwTypeData );
-						iteminfo.cch = wcslen( iteminfo.dwTypeData );
+						iteminfo.cch = (UINT)wcslen( iteminfo.dwTypeData );
 
 						InsertMenuItem( tracklistmenu, i-1, 1, &iteminfo );
-						iTrack->Release();
+						SAFE_RELEASE( iTrack );
 					}
 				}
-				iTrackCollection->Release();
+				SAFE_RELEASE( iTrackCollection );
 			}
-			iPlaylist->Release();
+			SAFE_RELEASE( iPlaylist );
 		}
 	}
+	return 0;
 }
 
 
-LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
+LRESULT OnMouseWheel( HWND hwnd, WPARAM wparam, LPARAM lparam )
+{
+	short distance = (SHORT)HIWORD( wparam ) / WHEEL_DELTA;
+	int vk = LOWORD( wparam );
+	int x = HIWORD( lparam );
+	int y = LOWORD( lparam );
+	dprintf( L"distance=%d\n", distance );
+	if( g_miku.iTunes==NULL ) return 0;
+
+	long volume;
+	if( g_miku.iTunes->get_SoundVolume( &volume )==S_OK ){
+		volume += distance;
+		volume = MIN( 100, volume );
+		volume = MAX(   0, volume );
+		dprintf( L"volume=%d\n", volume );
+		g_miku.iTunes->put_SoundVolume( volume );
+		g_miku.iTunesVolume = volume;
+		UpdateToolTipHelp( L"Volume:%d", volume );
+
+        /* チップヘルプをVolumeに変えたあと曲名に戻すためのトリガとして.
+           チップヘルプが消えた瞬間をトラップできればいいのだけど.
+         */
+		SetTimer( hwnd, TIMER_ID_REFRESH_TIPHELP, 5000, NULL );
+	}
+	return 0;
+}
+
+
+LRESULT OnTimer( HWND hWnd, WPARAM wParam, LPARAM lParam )
+{
+	switch( wParam ){
+	case TIMER_ID_DRAW:
+		UpdateMikuClock();
+		InvalidateRect( hWnd, NULL, TRUE );
+		CheckMikuSpeak( hWnd );
+		FindITunes( hWnd );
+		break;
+
+	case TIMER_ID_REFRESH_TIPHELP:
+		if( g_miku.iTunes ){
+			ITPlayerState st;
+			g_miku.iTunes->get_PlayerState( &st );
+			if( st==ITPlayerStateStopped ){
+				UpdateToolTipHelp( L"" );
+			}else{
+				UpdateToolTipHelp( L"%s (%s)", g_miku.currentmusic.c_str(), g_miku.currentartist.c_str() );
+			}
+		}else{
+			UpdateToolTipHelp( L"" );
+		}
+		KillTimer( hWnd, TIMER_ID_REFRESH_TIPHELP );
+		break;
+	case TIMER_ID_NICO_KEEPALIVE:
+		if( g_miku.nico ) g_miku.nico->keepalive();
+		break;
+	}
+	return 0;
+}
+
+LRESULT OnLeftButtonDoubleClock( HWND hwnd, WPARAM wparam, LPARAM lparam )
+{
+	iTunesPlayOrStop();
+	return 0;
+}
+
+LRESULT OnPaint( HWND hWnd )
 {
     PAINTSTRUCT ps;
     HDC hdc;
+    hdc = BeginPaint( hWnd, &ps );
+    DrawMiku( hdc );
+    EndPaint( hWnd, &ps );
+	return 0;
+}
 
-    switch( message ){
+LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
+{
+	static UINT ttraymsg;
+
+	switch( message ){
     case WM_CREATE:
         CreateToolTipHelp( hWnd );
-        SetTimer( hWnd, 1, 1000, NULL );
+        SetTimer( hWnd, TIMER_ID_DRAW, 1000, NULL );
+
+		ttraymsg = RegisterWindowMessage(L"TaskbarCreated");
         break;
 
-    case WM_PAINT:
-        hdc = BeginPaint( hWnd, &ps );
-        DrawMiku( hdc );
-        EndPaint( hWnd, &ps );
-        break;
+    case WM_PAINT:		return OnPaint( hWnd ); break;
+    case WM_TIMER:		return OnTimer( hWnd, wParam, lParam ); break;
+    // show menu
+	case WM_CONTEXTMENU:return ShowPopupMenu( hWnd ); break;
+	case WM_MENUSELECT:	return OnMenuSelect( hWnd, wParam, lParam ); break;
 
-    case WM_TIMER:
-        UpdateMikuClock();
-        InvalidateRect( hWnd, NULL, TRUE );
-        CheckMikuSpeak( hWnd );
-        FindITunes( hWnd );
-        break;
+	case WM_INITMENUPOPUP:
+		break;
+	case WM_UNINITMENUPOPUP:
+		break;
+    // drive popup menu.
+    case WM_COMMAND:		return OnContextMenu( hWnd, wParam, lParam ); break;
 
-    case WM_LBUTTONDBLCLK:  // double click
-        iTunesPlayOrStop();
-        //SpeakMiku();
-        break;
+	case WM_LBUTTONDBLCLK:	return OnLeftButtonDoubleClock( hWnd, wParam, lParam ); break;
+    case WM_MOUSEWHEEL:		return OnMouseWheel( hWnd, wParam, lParam ); break;
+    case WM_ITUNES:			return OnITunesEvent( hWnd, wParam, lParam ); break;
+	case WM_NNA_NOTIFY:		return OnNicoNamaNotify( hWnd, wParam, lParam); break;
+
+	case WM_TTRAY_POPUP:
+		switch( lParam ){
+		case WM_RBUTTONUP:
+			SetForegroundWindow( hWnd );
+			ShowPopupMenu( hWnd );
+			PostMessage( hWnd, WM_NULL, 0, 0 );
+			break;
+		}
+		break;
 
     case WM_LBUTTONDOWN:
         // begin moving window.
@@ -938,6 +1326,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
         g_miku.dragStartX = LOWORD(lParam);
         g_miku.dragStartY = HIWORD(lParam);
         SetCapture( hWnd );
+		return 0;
         break;
     case WM_MOUSEMOVE:
         // window is moving.
@@ -946,63 +1335,41 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
             GetCursorPos( &point );
             g_miku.pWindow->moveWindow( point.x-g_miku.dragStartX, point.y-g_miku.dragStartY );
         }else{
-			//dprintf( L"WM_MOUSEMOVE\n" );
-        }
+
+		}
+		return 0;
         break;
     case WM_LBUTTONUP:
         // finish moving window.
         g_miku.inDrag = false;
         ReleaseCapture();
+		return 0;
         break;
-
-	case WM_CONTEXTMENU:
-    //case WM_RBUTTONDOWN:
-        // show menu
-        ShowPopupMenu( hWnd );
-        break;
-
-	case WM_MENUSELECT:
-		dprintf( L"WM_MENUSELECT\n" );
-		OnMenuSelect( hWnd, wParam, lParam );
-		break;
-
-	case WM_INITMENUPOPUP:
-		dprintf( L"WM_INITMENUPOPUP\n" );
-		break;
-	case WM_UNINITMENUPOPUP:
-		dprintf( L"WM_UNINITMENUPOPUP\n" );
-		break;
 
 	case WM_DESTROY:
         SaveToRegistory();
         PostQuitMessage( 0 );
         break;
 
-    case WM_COMMAND:
-        // drive popup menu.
-        ProcessContextMenu( hWnd, wParam, lParam );
-        break;
-
-    case WM_MOUSEWHEEL:
-        dprintf( L"Mouse Wheel\n");
-        break;
-
-    case WM_ITUNES:
-        ProcessITunesEvent( hWnd, wParam, lParam );
-        break;
-
     default:
-        break;
+		if( message==ttraymsg ){
+			dprintf( L"Re-register tasktray icon.\n" );
+			RegisterTaskTrayIcon();
+		}
+		break;
     }
 
     return DefWindowProc( hWnd, message, wParam, lParam );
 }
+
 
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
     InitMikuClock();
     LoadMikuImage();
     UpdateMikuClock();
+
+	g_miku.cmdline = lpCmdLine;
 
     g_miku.hInst = hInstance;
     g_miku.pWindow = new tWindow( APP_TITLE, 100, 100, 256, 256, WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX, WndProc, hInstance );
@@ -1013,8 +1380,9 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
     g_miku.pWindow->moveWindow( g_config.winx, g_config.winy );
     g_miku.pWindow->setTransparency( g_config.isTransparent?g_config.trans_rate:255 );
     g_miku.pWindow->setTopMost( g_config.isTopMost );
-
     g_miku.pWindow->show();
+
+	RegisterTaskTrayIcon();
 
     // Main message loop
     MSG msg = {0};
@@ -1025,13 +1393,16 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
             dprintf(L"Error occurred while GetMessage()\n");
             break;
         }else{
-            TranslateMessage(&msg); 
-            DispatchMessage(&msg); 
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
         }
     }
 
-    ExitMikuClock();
+	UnregisterTaskTrayIcon();
 
-    delete g_miku.pWindow;
-    return (int)msg.wParam;
+	SAFE_DELETE( g_miku.nico );
+    SAFE_DELETE( g_miku.pWindow );
+
+    ExitMikuClock();
+	return (int)msg.wParam;
 }

@@ -17,8 +17,7 @@ Global
 		{500F894C-C41F-4939-B929-D03AE39C04E7}.Debug|x64.Build.0 = Debug|x64
 		{500F894C-C41F-4939-B929-D03AE39C04E7}.Release|Win32.ActiveCfg = Release|Win32
 		{500F894C-C41F-4939-B929-D03AE39C04E7}.Release|Win32.Build.0 = Release|Win32
-		{500F894C-C41F-4939-B929-D03AE39C04E7}.Release|x64.ActiveCfg = Release|x64
-		{500F894C-C41F-4939-B929-D03AE39C04E7}.Release|x64.Build.0 = Release|x64
+		{500F894C-C41F-4939-B929-D03AE39C04E7}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -44,8 +44,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;DEBUG"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -66,7 +66,9 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylibd.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;"
+				IgnoreDefaultLibraryNames="libcmt.lib"
+				DelayLoadDLLs="gdiplus.dll"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="1"
@@ -119,8 +121,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;DEBUG"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -140,9 +142,10 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylibd.lib"
-				OutputFile="$(OutDir)\$(ProjectName)64.exe"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;"
+				IgnoreDefaultLibraryNames="libcmt.lib"
+				DelayLoadDLLs=""
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				TargetMachine="17"
@@ -196,7 +199,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -216,9 +219,11 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.3\$(ProjectName).exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.4\$(ProjectName).exe"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;"
+				IgnoreDefaultLibraryNames="msvcrt.lib"
+				DelayLoadDLLs="gdiplus.dll"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -275,7 +280,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
@@ -295,9 +300,11 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.3\$(ProjectName)64.exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.4\$(ProjectName).exe"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;"
+				IgnoreDefaultLibraryNames="msvcrt.lib"
+				DelayLoadDLLs="gdiplus.dll"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"
@@ -336,6 +343,26 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\src\debug.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\niconamaalert.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tNetwork.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tNotifyWindow.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tXML.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\winmain.cpp"
 				>
 			</File>
@@ -346,7 +373,31 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\src\debug.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\niconamaalert.h"
+				>
+			</File>
+			<File
 				RelativePath=".\resource.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tNetwork.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tNotifyWindow.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tXML.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\udmessages.h"
 				>
 			</File>
 		</Filter>
@@ -693,6 +744,10 @@
 			</File>
 			<File
 				RelativePath=".\HatsuneMiclock.rc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\miku\miku_bonus_files\icon1.ico"
 				>
 			</File>
 			<File
