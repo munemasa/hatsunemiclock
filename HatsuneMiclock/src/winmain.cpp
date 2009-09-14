@@ -123,7 +123,7 @@ void InitMikuClock()
 	CreateThread( NULL, 0, thMikuSaysNowTime, NULL, 0, &g_miku.thid );
 
 	// COM
-	CoInitializeEx( NULL, COINIT_MULTITHREADED );
+	CoInitializeEx( NULL, COINIT_MULTITHREADED | COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE );
 
 	// common control
 	INITCOMMONCONTROLSEX ic;
@@ -1069,6 +1069,13 @@ void NicoNamaLogin( HWND hWnd )
 	}
 
 	if( g_miku.nico->connectCommentServer()==0 ){
+		if( g_miku.cmdline.find( L"/randompickup", 0 )!=std::wstring::npos ){
+			dprintf( L"Random Pickup Mode\n" );
+			g_miku.nico->setRandomPickup( true );
+		}else{
+			dprintf( L"Standard Pickup Mode\n" );
+			g_miku.nico->setRandomPickup( false );
+		}
 		dprintf( L"Logged in to Niconama.\n" );
 		_beginthread( thNicoNamaAlert, 0, g_miku.nico );
 	}else{
@@ -1384,7 +1391,11 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 
 	RegisterTaskTrayIcon();
 
-    // Main message loop
+	if( g_config.nico_autologin ){
+		NicoNamaLogin( g_miku.pWindow->getWindowHandle() );
+	}
+
+	// Main message loop
     MSG msg = {0};
     BOOL bRet;
     while( (bRet = GetMessage( &msg, NULL, 0, 0 )) != 0){

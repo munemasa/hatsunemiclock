@@ -130,8 +130,12 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 			tNotifyWindow*notify;
 			notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
 			dprintf( L"Thumbnail clicked\n" );
-			HINSTANCE r = ShellExecute(NULL, L"open", notify->GetLiveURL().c_str(), NULL, NULL, SW_SHOWNORMAL);
+			//HINSTANCE r = ShellExecute(NULL, L"open", notify->GetLiveURL().c_str(), NULL, NULL, SW_SHOWNORMAL);
+			HINSTANCE r = ShellExecute(NULL, NULL, notify->GetLiveURL().c_str(), NULL, NULL, SW_SHOWNORMAL);
 			if( (int)r<=32 ){
+				// XP‚¾‚ÆSE_ERR_ACCESSDENIED‚É‚È‚é‚È.
+				dprintf( L"ShellExecute: %d\n", (int)r );
+				r = ShellExecute(NULL, L"open", L"explorer", notify->GetLiveURL().c_str(), NULL, SW_SHOWNORMAL );
 				dprintf( L"ShellExecute: %d\n", (int)r );
 			}
 			KillTimer( hWnd, 1 );
