@@ -68,11 +68,13 @@ void thNicoNamaAlert(LPVOID v)
 
 			int p = (float)rand() / RAND_MAX * 100;
 			if( !nico->isRandomPickup() ) p = 10000;
+			bool b = nico->isParticipant( data.at(1) );
 			// ランダムピックアップは 5% 固定で.
-			if( p<5 || nico->isParticipant( data.at(1) ) ){
+			if( p<5 || b ){
 				dprintf( L"Your community(%s)'s broadcasting is started.\n", data[1].c_str() );
 				NicoNamaProgram program;
 				GetBroadcastingInfo( data[0], program );
+				program.playsound = b;
 				nico->addProgramQueue( program );
 			}
 		}

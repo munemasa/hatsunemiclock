@@ -9,6 +9,7 @@ using namespace Gdiplus;
 #include "iTunesLib.h"
 #include "tNetwork.h"
 #include "tNotifyWindow.h"
+#include "tPlaySound.h"
 #include "udmessages.h"
 #include "niconamaalert.h"
 #include "stringlib.h"
@@ -716,7 +717,7 @@ void CreateNicoNamaNotify( NicoNamaProgram*program )
 	}
 	notifywin->SetCommunityURL( str );
 
-	notifywin->Show();
+	notifywin->Show( program->playsound );
 }
 
 LRESULT OnNicoNamaNotify( HWND hwnd, WPARAM wparam, LPARAM lparam )
@@ -1022,16 +1023,18 @@ void NicoNamaLogin( HWND hWnd )
 {
 	std::string userid, userpassword;
 
-	if( g_miku.nico ){
-		dprintf( L" You may already logged in.\n" );
-		return;
-	}
-
 	// SHIFTキー押しながらだと、ログインダイアログを出す.
-	if( !g_config.nico_autologin || (GetKeyState(VK_SHIFT)&0x8000) ){
+	if( (g_miku.nico==NULL && !g_config.nico_autologin) ||
+		(GetKeyState(VK_SHIFT)&0x8000) ){
 		INT_PTR dlgret;
 		dlgret = DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_NICO_IDPASS), hWnd, DlgNicoIDPASSProc );
 		if( dlgret==IDCANCEL ) return;
+		SAFE_DELETE( g_miku.nico );
+	}
+
+	if( g_miku.nico ){
+		dprintf( L" You may already logged in.\n" );
+		return;
 	}
 
 #if 0
@@ -1394,6 +1397,9 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	if( g_config.nico_autologin ){
 		NicoNamaLogin( g_miku.pWindow->getWindowHandle() );
 	}
+
+	tPlaySound( L"d:\\sound\\nc1277.wav" );
+	tPlaySound( L"d:\\sound\\nc11846.mp3" );
 
 	// Main message loop
     MSG msg = {0};

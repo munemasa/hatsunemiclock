@@ -26,13 +26,13 @@ class tNotifyWindow {
 	std::wstring	m_live_url;
 
 	void CreateToolTip();
+	void SetToolTip( const WCHAR*str );
 
 public:
 	tNotifyWindow( HINSTANCE hinst, HWND parent );
 	~tNotifyWindow();
 
-	void SetToolTip( const WCHAR*str );
-	void Show();
+	void Show( bool playsound=false );
 
 	inline HWND getWindowHandle() const { return m_hwnd; }
 	inline HWND getParentWindowHandle() const { return m_parenthwnd; }

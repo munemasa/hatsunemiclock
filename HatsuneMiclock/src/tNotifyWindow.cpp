@@ -2,6 +2,7 @@
 #include <gdiplus.h>
 
 #include "tNotifyWindow.h"
+#include "tPlaySound.h"
 #include "udmessages.h"
 
 #include "debug.h"
@@ -16,45 +17,6 @@ enum {
 // サムネを張る座標.
 #define PICTURE_X	8
 #define PICTURE_Y	24
-
-/** ツールチップを作成する.
- */
-void tNotifyWindow::CreateToolTip()
-{
-	DWORD dwStyle = TTS_ALWAYSTIP | TTS_NOPREFIX;
-    m_tooltip = CreateWindowEx( 0, TOOLTIPS_CLASS, L"", dwStyle,
-                                0, 0, 200,100, m_hwnd, NULL, NULL, NULL );
-    TOOLINFO ti;
-    ZeroMemory( &ti, sizeof(TOOLINFO) );
-    ti.cbSize = sizeof(TOOLINFO);
-    ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
-    ti.hwnd = m_tooltip;
-    ti.hinst = GetModuleHandle(NULL);
-    ti.lpszText = L"";
-    ti.uId = (UINT_PTR)m_hwnd;
-    ti.rect.left = 8;
-    ti.rect.right = 8;
-    ti.rect.top = 8+64;
-    ti.rect.bottom = 8+64;
-    SendMessage( m_tooltip, TTM_ADDTOOL, 0, (LPARAM)&ti );
-    SendMessage( m_tooltip, TTM_SETDELAYTIME, TTDT_INITIAL, (LPARAM)MAKELONG(100, 0) );
-}
-
-void tNotifyWindow::SetToolTip( const WCHAR*str )
-{
-    TOOLINFO ti;
-	std::wstring s;
-	s = str;
-	s += L"/dummy";	// なぜか最後の / 以降表示してくれないので. 原因をググったけど見つからず.
-    ZeroMemory( &ti, sizeof(TOOLINFO) );
-    ti.cbSize = sizeof(TOOLINFO);
-    ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
-    ti.hwnd = m_tooltip;
-    ti.hinst = NULL;
-	ti.lpszText = (LPWSTR)s.c_str();
-    ti.uId = (UINT_PTR)m_hwnd;
-    SendMessage( (HWND)m_tooltip, (UINT)TTM_UPDATETIPTEXT, (WPARAM)0, (LPARAM)&ti );
-}
 
 
 static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
@@ -189,6 +151,49 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 }
 
 
+/** ツールチップを作成する.
+ */
+void tNotifyWindow::CreateToolTip()
+{
+	DWORD dwStyle = TTS_ALWAYSTIP | TTS_NOPREFIX;
+    m_tooltip = CreateWindowEx( 0, TOOLTIPS_CLASS, L"", dwStyle,
+                                0, 0, 200,100, m_hwnd, NULL, NULL, NULL );
+    TOOLINFO ti;
+    ZeroMemory( &ti, sizeof(TOOLINFO) );
+    ti.cbSize = sizeof(TOOLINFO);
+    ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
+    ti.hwnd = m_tooltip;
+    ti.hinst = GetModuleHandle(NULL);
+    ti.lpszText = L"";
+    ti.uId = (UINT_PTR)m_hwnd;
+    ti.rect.left = 8;
+    ti.rect.right = 8;
+    ti.rect.top = 8+64;
+    ti.rect.bottom = 8+64;
+    SendMessage( m_tooltip, TTM_ADDTOOL, 0, (LPARAM)&ti );
+    SendMessage( m_tooltip, TTM_SETDELAYTIME, TTDT_INITIAL, (LPARAM)MAKELONG(100, 0) );
+}
+
+void tNotifyWindow::SetToolTip( const WCHAR*str )
+{
+    TOOLINFO ti;
+	std::wstring s;
+    /* Vistaだと最後の/以降が表示されないのでダミー文字列を付加しておく.
+       XPだと期待した通りに表示されるんだけど…ググっても原因は見つからず.
+     */
+	s = str;
+	s += L"/dummy";
+    ZeroMemory( &ti, sizeof(TOOLINFO) );
+    ti.cbSize = sizeof(TOOLINFO);
+    ti.uFlags = TTF_SUBCLASS | TTF_IDISHWND;
+    ti.hwnd = m_tooltip;
+    ti.hinst = NULL;
+	ti.lpszText = (LPWSTR)s.c_str();
+    ti.uId = (UINT_PTR)m_hwnd;
+    SendMessage( (HWND)m_tooltip, (UINT)TTM_UPDATETIPTEXT, (WPARAM)0, (LPARAM)&ti );
+}
+
+
 tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
 {
 	m_bitmap = NULL;
@@ -313,8 +318,14 @@ tNotifyWindow::~tNotifyWindow()
 	dprintf( L"Deleted tNotifyWindow.\n" );
 }
 
-void tNotifyWindow::Show()
+/** ウィンドウを表示する.
+ * @param playsound 表示時に効果音を再生するかどうか.
+ */
+void tNotifyWindow::Show( bool playsound )
 {
+	if( playsound ){
+		tPlaySound( L"d:\\sound\\nc11846.mp3" );	// test
+	}
 	ShowWindow( m_hwnd, SW_SHOW );
 	UpdateWindow( m_hwnd );
 }
@@ -336,7 +347,11 @@ int tNotifyWindow::SetTitle( std::wstring &title )
 	return 0;
 }
 
-
+/** サムネイルの設定.
+ * GDI+に任せているため、実際にはJPEG以外の画像も取り扱いできるはず。
+ * @param jpegimage メモリ上にある画像データ
+ * @param sz 画像データのサイズ
+ */
 int tNotifyWindow::SetThumbnail( char*jpegimage, int sz )
 {
 	HGLOBAL mem = GlobalAlloc( GHND, sz );

@@ -42,13 +42,16 @@ struct NicoNamaProgram {
 	char*			thumbnail_image;
 	DWORD			thumbnail_image_size;
 
-	time_t			start;  // 番組の開始時刻.
+	time_t			start;		// 番組の開始時刻.
+	bool			playsound;	// サウンド通知を行うか.
 
-	NicoNamaProgram(){ thumbnail_image = NULL; }
-	~NicoNamaProgram(){ if( thumbnail_image ) free( thumbnail_image ); }
+	NicoNamaProgram(){ thumbnail_image = NULL; playsound=false; }
+	~NicoNamaProgram(){ SAFE_FREE( thumbnail_image ); }
 
 	NicoNamaProgram( const NicoNamaProgram &src ){
 		// thumbnail_imageのためのコピーコンストラクタ.
+		this->start				= src.start;
+		this->playsound			= src.playsound;
 		this->request_id		= src.request_id;
 		this->title				= src.title;
 		this->description		= src.description;
@@ -56,7 +59,6 @@ struct NicoNamaProgram {
 		this->community_name	= src.community_name;
 		this->thumbnail			= src.thumbnail;
 		this->thumbnail_image_size = src.thumbnail_image_size;
-		this->start				= src.start;
 		// 画像を新規メモリにコピー
 		this->thumbnail_image	= (char*)malloc( this->thumbnail_image_size );
 		CopyMemory( this->thumbnail_image, src.thumbnail_image, thumbnail_image_size );
@@ -64,6 +66,8 @@ struct NicoNamaProgram {
 	NicoNamaProgram& operator=( const NicoNamaProgram &src ){
 		// 代入演算のとき.
 		SAFE_DELETE( this->thumbnail_image );
+		this->start				= src.start;
+		this->playsound			= src.playsound;
 		this->request_id		= src.request_id;
 		this->title				= src.title;
 		this->description		= src.description;
@@ -71,7 +75,6 @@ struct NicoNamaProgram {
 		this->community_name	= src.community_name;
 		this->thumbnail			= src.thumbnail;
 		this->thumbnail_image_size = src.thumbnail_image_size;
-		this->start				= src.start;
 		// 画像を新規メモリにコピー
 		this->thumbnail_image = (char*)malloc( this->thumbnail_image_size );
 		CopyMemory( this->thumbnail_image, src.thumbnail_image, thumbnail_image_size );

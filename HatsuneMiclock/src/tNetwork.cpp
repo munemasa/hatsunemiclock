@@ -64,15 +64,15 @@ tHttp::tHttp()
 tHttp::~tHttp()
 {
 	cleanup();
-	if( m_host ) free( m_host );
-	if( m_path ) free( m_path );
+	SAFE_FREE( m_host );
+	SAFE_FREE( m_path );
 }
 
 // bufsizeの文字数(wchar_t)分のメモリを確保.
 bool tHttp::allocbuffer( int bufsize )
 {
-	if( m_host ) free( m_host );
-	if( m_path ) free( m_path );
+	SAFE_FREE( m_host );
+	SAFE_FREE( m_path );
 
 	m_host = (WCHAR*)calloc( sizeof(WCHAR) * (bufsize+1), 1 );
 	m_path = (WCHAR*)calloc( sizeof(WCHAR) * (bufsize+1), 1 );
@@ -197,8 +197,7 @@ int tHttp::request( const WCHAR*url, char**data, DWORD*datalen, const char*postd
         // 利用可能なデータがあるかチェックする
         if( !WinHttpQueryDataAvailable( m_hRequest, &dwSize ) ){
             dprintf( L"Error %u in WinHttpQueryDataAvailable.\n", GetLastError() );
-			if( buffer ) free( buffer );
-			buffer = NULL;
+			SAFE_FREE( buffer );
 			buffersize = 0;
 			r = -1;
 			break;
@@ -211,14 +210,12 @@ int tHttp::request( const WCHAR*url, char**data, DWORD*datalen, const char*postd
 		char*tmp = (char*)realloc( buffer, buffersize );
 		if( tmp ){
 	        buffer = tmp;
-			//dprintf( L"now buffer size, %d\n", buffersize );
 		}
 
 		if( tmp==NULL ){
 			// realloc失敗は元のバッファをfreeしないと.
             dprintf( L"Out of memory\n");
-			free( buffer );
-			buffer = NULL;
+			SAFE_FREE( buffer );
 			buffersize = 0;
 			r = -1;
 			break;
@@ -311,15 +308,18 @@ int tSocket::connect( const sockaddr*name, int namelen )
 
 int tSocket::send( const char*buf, int len )
 {
+	if( m_socket==INVALID_SOCKET ) return -1;
 	return ::send( m_socket, buf, len, 0 );
 }
 
 int tSocket::recv( char*buf, int len )
 {
+	if( m_socket==INVALID_SOCKET ) return -1;
 	return ::recv( m_socket, buf, len, 0 );
 }
 
 int tSocket::close()
 {
+	if( m_socket==INVALID_SOCKET ) return -1;
 	return ::closesocket( m_socket );
 }
