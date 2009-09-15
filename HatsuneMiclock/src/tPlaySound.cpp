@@ -29,7 +29,6 @@ static void thPlaySound(LPVOID v)
 		dprintf( L"mciSendString open failed %d\n", err );
 	}
 
-	/* wait‚ÅÄ¶‚·‚é‚Æ‚«‚Ístop,close‚È‚­‚Ä‚¢‚¢ */
 	cmd = L"play " + alias + L" wait";
 	err = mciSendString( cmd.c_str(), buf, 4096, NULL );
 	if( err!=0 ){

@@ -100,6 +100,16 @@
 #define IDS_BOARD_XPOSITION             193
 #define IDS_BOARD_YPOSITION             194
 #define IDI_TASKTRAYICON                194
+#define IDS_ERR_ALREADY_CONNECTED       195
+#define IDS_ERR_AUTH_FAILED             196
+#define IDS_ERR_AUTH_FAILED_CAPTION     197
+#define IDR_WAVE1                       197
+#define IDR_3MIN_PROGRESS               197
+#define IDS_ERR_CAPTION                 198
+#define IDS_ERR_CONNECT_FAILED          199
+#define IDS_ERR_CONNECT_FAILED_CAPTION  200
+#define IDS_MENU_TRACKLIST              201
+#define IDS_MENU_NICO_RECENT            202
 #define IDC_CHK_TOPMOST                 1006
 #define IDC_GRP_DISPLAY                 1007
 #define IDC_CHK_AMPM                    1008
@@ -115,7 +125,6 @@
 #define IDC_REMEMBERME                  1034
 #define IDC_SOUNDFILE                   1035
 #define IDC_BTN_SELECT_SNDFILE          1036
-#define IDC_NICOIDPASS_SAVE             1041
 #define IDC_CHK_NICOIDPASS_SAVE         1041
 #define ID_MAIN_40001                   40001
 #define ID_40002                        40002
@@ -136,13 +145,15 @@
 #define ID_TEST_TEST2                   40073
 #define ID_Menu                         40074
 #define ID_BTN_NOCOLOGIN                40075
+#define ID_0_4                          40076
+#define ID_BTN_3MIN                     40077
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        196
-#define _APS_NEXT_COMMAND_VALUE         40076
+#define _APS_NEXT_RESOURCE_VALUE        198
+#define _APS_NEXT_COMMAND_VALUE         40078
 #define _APS_NEXT_CONTROL_VALUE         1042
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

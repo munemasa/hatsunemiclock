@@ -16,6 +16,9 @@ public:
 
 	static xmlNode* FindFirstNode( xmlNode*node, const char*nodename );
 	static char* FindFirstTextNode( xmlNode*node, const char*nodename );
+	static char* FindAttribute( xmlNode*node, const char*attrname );
+	
+	inline xmlNodePtr getRootNode(){ return m_root; }
 
 	char* FindFirstTextNodeFromRoot( const char*nodename );
 	xmlNode* FindFirstNodeFromRoot( const char*nodename );

@@ -300,7 +300,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.4\$(ProjectName).exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.4\$(ProjectName)64.exe"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;"
 				IgnoreDefaultLibraryNames="msvcrt.lib"
@@ -619,6 +619,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\miku\clock\3minprogress.wav"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\miku\clock\40min.wav"
 				>
 			</File>
@@ -764,6 +768,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\miku\miku_bonus_files\miku_sd.bmp"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\miku\miku_bonus_files\wave1.bin"
 				>
 			</File>
 		</Filter>

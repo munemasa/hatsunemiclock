@@ -144,6 +144,7 @@ IDR_MIN52               WAVE                    "D:\\miku\\clock\\52min.wav"
 IDR_MIN54               WAVE                    "D:\\miku\\clock\\54min.wav"
 IDR_MIN56               WAVE                    "D:\\miku\\clock\\56min.wav"
 IDR_MIN58               WAVE                    "D:\\miku\\clock\\58min.wav"
+IDR_3MIN_PROGRESS       WAVE                    "D:\\miku\\clock\\3minprogress.wav"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -155,6 +156,7 @@ BEGIN
     POPUP "0"
     BEGIN
         MENUITEM "いま何時？",                       ID_BTN_WHATTIMEISITNOW
+        MENUITEM "3分タイマー",                      ID_BTN_3MIN
         MENUITEM SEPARATOR
         MENUITEM "ニコ生に接続...(&C)",               ID_BTN_NOCOLOGIN
         MENUITEM "設定...(&S)",                   ID_BTN_SETTING
@@ -176,11 +178,6 @@ BEGIN
     IDD_ABOUT_DIALOG, DIALOG
     BEGIN
         RIGHTMARGIN, 195
-    END
-
-    IDD_NICO_IDPASS, DIALOG
-    BEGIN
-        BOTTOMMARGIN, 127
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -224,19 +221,19 @@ BEGIN
     DEFPUSHBUTTON   "キャンセル",IDCANCEL,141,161,41,18
 END
 
-IDD_NICO_IDPASS DIALOGEX 0, 0, 195, 136
+IDD_NICO_IDPASS DIALOGEX 0, 0, 213, 136
 STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "ニコニコ動画のIDとパスワードを入力"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
-    LTEXT           "メールアドレス(ID)",IDC_STATIC,18,26,48,8
-    LTEXT           "パスワード",IDC_STATIC,38,52,28,8
-    EDITTEXT        IDC_EDIT_NOCO_EMAIL,74,21,106,16,ES_AUTOHSCROLL
-    EDITTEXT        IDC_NICO_PASSWORD,74,48,106,16,ES_PASSWORD | ES_AUTOHSCROLL
-    CONTROL         "メールアドレスとパスワードを保存する",IDC_CHK_NICOIDPASS_SAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,74,71,114,10
-    CONTROL         "今後、自動で接続する",IDC_REMEMBERME,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,74,83,105,14
-    DEFPUSHBUTTON   "接続",IDOK,90,109,41,18
-    PUSHBUTTON      "キャンセル",IDCANCEL,139,109,41,18
+    LTEXT           "メールアドレス(ID)",IDC_STATIC,11,26,48,8
+    LTEXT           "パスワード",IDC_STATIC,31,52,28,8
+    EDITTEXT        IDC_EDIT_NOCO_EMAIL,62,21,137,16,ES_AUTOHSCROLL
+    EDITTEXT        IDC_NICO_PASSWORD,62,48,137,16,ES_PASSWORD | ES_AUTOHSCROLL
+    CONTROL         "現在のメールアドレスとパスワードを保存する",IDC_CHK_NICOIDPASS_SAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,62,71,127,10
+    CONTROL         "今後、自動で接続する",IDC_REMEMBERME,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,62,83,105,14
+    DEFPUSHBUTTON   "接続",IDOK,111,110,41,18
+    PUSHBUTTON      "キャンセル",IDCANCEL,158,110,41,18
 END
 
 IDD_PROPPAGE_LARGE DIALOGEX 0, 0, 235, 156
@@ -312,6 +309,14 @@ BEGIN
     IDS_TEXT_YPOSITION      "131"
     IDS_BOARD_XPOSITION     "60"
     IDS_BOARD_YPOSITION     "125"
+    IDS_ERR_ALREADY_CONNECTED "ニコ生サーバにすでに接続しています。"
+    IDS_ERR_AUTH_FAILED     "認証に失敗しました。\nメールアドレスかパスワードが間違っています。"
+    IDS_ERR_AUTH_FAILED_CAPTION "認証の失敗"
+    IDS_ERR_CAPTION         "エラー"
+    IDS_ERR_CONNECT_FAILED  "コメントサーバに接続できませんでした。"
+    IDS_ERR_CONNECT_FAILED_CAPTION "接続の失敗"
+    IDS_MENU_TRACKLIST      "トラックリスト"
+    IDS_MENU_NICO_RECENT    "最近のニコ生放送"
 END
 
 #endif    // 日本語 resources

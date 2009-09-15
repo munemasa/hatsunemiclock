@@ -1,6 +1,7 @@
 //#define _WIN32_WINNT	0x0500
 #include "winheader.h"
 #include <string>
+#include <time.h>
 #include <process.h>
 #include <gdiplus.h>
 using namespace Gdiplus;
@@ -27,9 +28,11 @@ using namespace Gdiplus;
 #define APP_TITLE				L"Hatsune Miclock"
 #define REG_SUBKEY				L"Software\\Miku39.jp\\HatsuneMiclock"
 
-#define BUF_STRING_SIZE			(4096)		// 文字列バッファの最大文字列長(NUL文字込みで)
-#define ITUNES_TRACK_ID_BASE	(50000)
+#define BUF_STRING_SIZE					(4096)	// 文字列バッファの最大文字列長(NUL文字込みで)
+#define ITUNES_TRACK_ID_BASE			(50000)	// メニュー項目のID(iTunesプレイリスト用)
+#define MENU_TRACKLIST_INSERT_POSITION	(2)		// トラックリストメニューの挿入先.
 
+#define TIMER_3MIN		(3)	// 3分タイマーの時間(分)
 
 
 struct T_MIKU_CONFIG {
@@ -94,28 +97,41 @@ void UpdateToolTipHelp( WCHAR*str,... );
 LRESULT CALLBACK SubWindowProc( HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam );
 
 
+std::wstring GetStringFromResource( UINT resourceid )
+{
+	std::wstring str;
+	WCHAR buf[BUF_STRING_SIZE];
+	ZeroMemory( buf, sizeof(buf) );
+	LoadString( GetModuleHandle(NULL), resourceid, buf, BUF_STRING_SIZE );
+	str = buf;
+	return str;
+}
+
+
 /** 初音ミクロックの初期化.
  * ライブラリ、スレッド、ワークの初期化を行う.
  * WinMainの最初で呼ぶ.
  */
 void InitMikuClock()
 {
-    // read some parameters from resource.
+	srand( GetTickCount() );
+
+	// read some parameters from resource.
 	ZeroMemory( &g_miku, sizeof(g_miku) );
 
-	TCHAR buf[BUF_STRING_SIZE];
+	WCHAR buf[BUF_STRING_SIZE];
 	ZeroMemory( buf, sizeof(buf) );
 
     // position of text.
-	LoadString( GetModuleHandle(NULL), IDS_TEXT_XPOSITION, buf, BUF_STRING_SIZE-1 );
+	LoadString( GetModuleHandle(NULL), IDS_TEXT_XPOSITION, buf, BUF_STRING_SIZE );
 	g_miku.fx = _wtoi(buf);
-	LoadString( GetModuleHandle(NULL), IDS_TEXT_YPOSITION, buf, BUF_STRING_SIZE-1 );
+	LoadString( GetModuleHandle(NULL), IDS_TEXT_YPOSITION, buf, BUF_STRING_SIZE );
 	g_miku.fy = _wtoi(buf);
 
     // position of clock board.
-	LoadString( GetModuleHandle(NULL), IDS_BOARD_XPOSITION, buf, BUF_STRING_SIZE-1 );
+	LoadString( GetModuleHandle(NULL), IDS_BOARD_XPOSITION, buf, BUF_STRING_SIZE );
 	g_miku.bx = _wtoi(buf);
-	LoadString( GetModuleHandle(NULL), IDS_BOARD_YPOSITION, buf, BUF_STRING_SIZE-1 );
+	LoadString( GetModuleHandle(NULL), IDS_BOARD_YPOSITION, buf, BUF_STRING_SIZE );
 	g_miku.by = _wtoi(buf);
 
 	// speaking event
@@ -451,8 +467,8 @@ DWORD WINAPI thMikuSaysNowTime(LPVOID v)
 			if( g_config.is12_24 ){
 				hour %= 12;
 			}
-			PlaySound( MAKEINTRESOURCE(harray[hour]), GetModuleHandle(NULL), SND_RESOURCE );
-			PlaySound( MAKEINTRESOURCE(marray[min]), GetModuleHandle(NULL), SND_RESOURCE );
+			PlaySound( MAKEINTRESOURCE(harray[hour]), GetModuleHandle(NULL), SND_RESOURCE|SND_NOSTOP );
+			PlaySound( MAKEINTRESOURCE(marray[min]), GetModuleHandle(NULL), SND_RESOURCE|SND_NOSTOP );
 			g_miku.inSpeak = false;
 		}
 	}
@@ -537,36 +553,103 @@ long GetCurrentTrackPlaylistIndex( long *id )
  */
 LRESULT ShowPopupMenu(HWND hwnd)
 {
-    HMENU menu;
+	// メニューは同時に複数表示されないので、static型で確保しちゃおう.
+	static std::list<NicoNamaProgram> recentniconama;
+
+	HMENU menu;
     HMENU submenu;
+	HMENU hRecentBroadcasting;	// ニコ生アラート通知履歴.
     POINT pt;
+	MENUITEMINFO iteminfo;
+	std::wstring menuitemname;
 
     menu = LoadMenu( GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_CONTEXTMENU) );
     submenu = GetSubMenu( menu, 0 ); 
     SetMenuDefaultItem( submenu, ID_BTN_WHATTIMEISITNOW, 0 );
 
-	MENUITEMINFO iteminfo;
 	ZeroMemory( &iteminfo, sizeof(iteminfo) );
 	iteminfo.cbSize = sizeof(iteminfo);
 
+	// トラックリストメニューを追加.
+	// あらかじめリソースで用意してあるとサブメニューのビジュアルスタイルが旧型っぽくなるので.
 	HMENU tracklistmenu = CreatePopupMenu();
-    WCHAR currenttrackname[1024];
-    ZeroMemory( currenttrackname, sizeof(currenttrackname) );
 	iteminfo.fMask = MIIM_STRING | MIIM_SUBMENU;
-    iteminfo.dwTypeData = L"Track List";
-    iteminfo.cch = (UINT)wcslen( L"Track List" );
+
+	menuitemname = GetStringFromResource( IDS_MENU_TRACKLIST );
+	iteminfo.dwTypeData = (LPWSTR)menuitemname.c_str();
+	iteminfo.cch = (UINT)menuitemname.length();
     iteminfo.hSubMenu = tracklistmenu;
+
+	WCHAR currenttrackname[1024];
+    ZeroMemory( currenttrackname, sizeof(currenttrackname) );
     if( GetCurrentTrackName( currenttrackname, 1024 ) ){
 		WCHAR buf[BUF_STRING_SIZE];
 		wsprintf( buf, L"%s", currenttrackname );
         iteminfo.dwTypeData = buf;
         iteminfo.cch = (UINT)wcslen( buf );
     }
-    InsertMenuItem( submenu, 1, 1, &iteminfo );
+    InsertMenuItem( submenu, MENU_TRACKLIST_INSERT_POSITION, TRUE, &iteminfo );
+
+	// 最近のニコ生放送リストを追加.
+	if( g_miku.nico ){
+		recentniconama = g_miku.nico->getRecentList();
+
+		hRecentBroadcasting = CreatePopupMenu();
+		std::list<NicoNamaProgram>::iterator it;
+		int i;
+		for( i=1,it=recentniconama.begin(); it!=recentniconama.end(); it++,i++){
+			std::wstring wstr;
+			iteminfo.fMask = MIIM_ID | MIIM_STRING | MIIM_DATA;
+			iteminfo.wID = i;
+			iteminfo.dwItemData = (ULONG_PTR)&(*it);	// NicoNamaProgramへのポインタ入れておこう.
+
+			struct tm * starttime = localtime( &(*it).start );
+			wchar_t timebuf[1024];
+			strtowstr( (*it).title, wstr );
+			wsprintf( timebuf, L" (%d:%02d)", starttime->tm_hour, starttime->tm_min );
+			wstr = wstr + timebuf;
+			iteminfo.dwTypeData = (LPWSTR)wstr.c_str();
+			iteminfo.cch = (UINT)wstr.length();
+			InsertMenuItem( hRecentBroadcasting, 0, TRUE, &iteminfo );
+		}
+
+		menuitemname = GetStringFromResource( IDS_MENU_NICO_RECENT );
+		iteminfo.fMask = MIIM_STRING | MIIM_SUBMENU;
+		iteminfo.hSubMenu = hRecentBroadcasting;
+		iteminfo.dwTypeData = (LPWSTR)menuitemname.c_str();
+		iteminfo.cch = (UINT)menuitemname.length();
+		InsertMenuItem( submenu, MENU_TRACKLIST_INSERT_POSITION+1, TRUE, &iteminfo );
+	}
 
 	GetCursorPos( &pt );
 
-    TrackPopupMenuEx( submenu, TPM_LEFTALIGN, pt.x, pt.y, hwnd, NULL );
+	int r;
+    r = TrackPopupMenuEx( submenu, TPM_LEFTALIGN | TPM_RETURNCMD, pt.x, pt.y, hwnd, NULL );
+	/* WM_COMMANDからではメニューアイテムに関連付けしたデータを取得できないので、
+	 * TPM_RETURNCMDを指定して、こちらで処理するように。
+	 * 今までWM_COMMANDで処理していたものを作り直すのも面倒なので、
+	 * WM_COMMANDをPostMessage()する。
+	 */
+	if(r){
+		PostMessage( hwnd, WM_COMMAND, r, 0 );
+	}
+	if( r>0 && r<=NICO_MAX_RECENT_PROGRAM ){
+		/* recentniconamaに直接触ってもいいような気もするけど、
+		 * listだとインデックスから直に項目に飛べないから、
+		 * アイテムからデータ取ってこよう。
+		 */
+		iteminfo.cbSize = sizeof(iteminfo);
+		iteminfo.fMask = MIIM_DATA;
+		GetMenuItemInfo( hRecentBroadcasting, r, FALSE, &iteminfo );
+		NicoNamaProgram *prog = (NicoNamaProgram*)iteminfo.dwItemData;
+		dprintf( L"Select %S(%S)\n", prog->title.c_str(), prog->request_id.c_str() );
+
+		std::wstring url = NICO_LIVE_URL;
+		std::wstring tmp;
+		strtowstr( prog->request_id, tmp );
+		url += tmp;
+		ShellExecute(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+	}
 
 	DestroyMenu( menu );
 	return 0;
@@ -1077,8 +1160,9 @@ void NicoNamaLogin( HWND hWnd )
 	}
 
 	if( g_miku.nico ){
-		dprintf( L" You may already logged in.\n" );
-		MessageBox( hWnd, L"すでに接続済みです。", L"エラー", MB_OK );
+		std::wstring text = GetStringFromResource(IDS_ERR_ALREADY_CONNECTED);
+		std::wstring cap  = GetStringFromResource(IDS_ERR_CAPTION);
+		MessageBox( hWnd, text.c_str(), cap.c_str(), MB_OK|MB_ICONEXCLAMATION );
 		return;
 	}
 
@@ -1112,7 +1196,10 @@ void NicoNamaLogin( HWND hWnd )
 		dprintf( L"Failed NicoAuth\n" );
 		SAFE_DELETE( g_miku.nico );
 		g_config.nico_autologin = 0;
-		MessageBox( hWnd, L"認証に失敗しました。\nメールアドレスかパスワードが間違っています。", L"認証の失敗", MB_OK );
+
+		std::wstring text	 = GetStringFromResource(IDS_ERR_AUTH_FAILED);
+		std::wstring caption = GetStringFromResource(IDS_ERR_AUTH_FAILED_CAPTION);
+		MessageBox( hWnd, text.c_str(), caption.c_str(), MB_OK|MB_ICONEXCLAMATION );
 		return;
 	}
 
@@ -1128,14 +1215,19 @@ void NicoNamaLogin( HWND hWnd )
 		_beginthread( thNicoNamaAlert, 0, g_miku.nico );
 	}else{
 		SAFE_DELETE( g_miku.nico );
-		MessageBox( hWnd, L"コメントサーバに接続できませんでした。", L"接続の失敗", MB_OK );
+
+		std::wstring text = GetStringFromResource(IDS_ERR_CONNECT_FAILED);
+		std::wstring cap  = GetStringFromResource(IDS_ERR_CONNECT_FAILED_CAPTION);
+		MessageBox( hWnd, text.c_str(), cap.c_str(), MB_OK|MB_ICONEXCLAMATION );
 	}
 }
 
 LRESULT OnContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 {
     WORD id = LOWORD(wParam);
-    switch( id ){
+	WORD notifycode = HIWORD(wParam);
+
+	switch( id ){
     case ID_BTN_QUIT:
         DestroyWindow( hWnd );
         break;
@@ -1151,6 +1243,10 @@ LRESULT OnContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
     case ID_BTN_WHATTIMEISITNOW:
         SpeakMiku();
         break;
+
+	case ID_BTN_3MIN:
+		SetTimer( hWnd, TIMER_ID_3MIN, TIMER_3MIN*60*1000, NULL );
+		break;
 
 	case ID_BTN_NOCOLOGIN:
 		NicoNamaLogin( hWnd );
@@ -1185,6 +1281,8 @@ LRESULT OnContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 }
 
 /** ポップアップメニューが選択されているときの処理.
+ * 40000～がリソースエディタで勝手に割り当てられて、
+ * 50000～51000をiTunesプレイリスト用に使用中。
  */
 LRESULT OnMenuSelect( HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
@@ -1193,10 +1291,11 @@ LRESULT OnMenuSelect( HWND hwnd, WPARAM wparam, LPARAM lparam )
 	int flg = HIWORD(wparam);
 #if 0
 	dprintf( L"menu index:%d\n", idx );
-	dprintf( L"wparam:%x\n", wparam );
+	dprintf( L"wparam:%p\n", wparam );
+	dprintf( L"lparam:%p\n", lparam );
 #endif
-	if( idx==1 && (flg & MF_POPUP) ){
-        /* idx==1 (Track List) が選択されたら、
+	if( idx==MENU_TRACKLIST_INSERT_POSITION && (flg & MF_POPUP) ){
+        /* idx==MENU_TRACKLIST_INSERT_POSITION (Track List) が選択されたら、
          * 現在のプレイリストでサブメニュー項目を構築する.
          */
 		HMENU tracklistmenu = GetSubMenu( menu, idx );
@@ -1314,6 +1413,19 @@ LRESULT OnTimer( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		break;
 	case TIMER_ID_NICO_KEEPALIVE:
 		if( g_miku.nico ) g_miku.nico->keepalive();
+		break;
+
+	case TIMER_ID_3MIN:
+		if( g_miku.inSpeak ){
+			// 再生中ならあとまわしにする.
+			SetTimer( hWnd, TIMER_ID_3MIN, 2000, NULL );
+			break;
+		}
+		dprintf( L"3min progress.\n" );
+		if( !PlaySound( MAKEINTRESOURCE(IDR_3MIN_PROGRESS), GetModuleHandle(NULL), SND_RESOURCE|SND_ASYNC ) ){
+			dprintf( L"PlaySound failed\n" );
+		}
+		KillTimer( hWnd, TIMER_ID_3MIN );
 		break;
 	}
 	return 0;

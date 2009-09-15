@@ -4,6 +4,7 @@ http://dic.nicovideo.jp/a/%E3%83%8B%E3%82%B3%E7%94%9F%E3%82%A2%E3%83%A9%E3%83%BC
 #include "winheader.h"
 #include <string>
 #include <process.h>
+#include <time.h>
 
 #include "libxml/tree.h"
 #include "libxml/parser.h"
@@ -20,6 +21,9 @@ http://dic.nicovideo.jp/a/%E3%83%8B%E3%82%B3%E7%94%9F%E3%82%A2%E3%83%A9%E3%83%BC
 #include "../resource.h"
 
 #pragma comment(lib,"libxml2_a.lib")
+
+#pragma warning( disable : 4996 ) 
+
 
 #define NICONAMA_COMMON_RSS		L"http://live.nicovideo.jp/recent/rss?tab=common&sort=start&p=1"	// 一般
 #define NICONAMA_TRY_RSS		L"http://live.nicovideo.jp/recent/rss?tab=try&sort=start&p=1"	// やってみた
@@ -52,31 +56,43 @@ void thNicoNamaAlert(LPVOID v)
 		int r;
 		r = nico->receive( str );
 		if( r<=0 ) break;
-
 		//dprintf( L"NNA:[%s]\n", str.c_str() );
-		if( str.find(L"chat",0)!=std::wstring::npos ){
-			// 放送開始したコミュを調べますよ.
-			// [放送ID],[チャンネル＆コミュニティID],[放送主のユーザーID]
-			std::vector<std::wstring> data;
-			int start = str.find(L">",0)+1;
-			int num = str.find(L"</chat>",0) - start;
+		if( str.find(L"<chat",0)==std::wstring::npos ) continue;
 
-			// <chat>ココ</chat>を取り出して , で分割.
-			std::wstring tmp;
-			tmp = str.substr( start, num );
-			data = split( tmp, std::wstring(L",") );
+		// 放送開始したコミュを調べますよ.
+		// [放送ID],[チャンネル＆コミュニティID],[放送主のユーザーID]
+		std::string mbstr;
+		wstrtostr( str, mbstr );
+		tXML xml( mbstr.c_str(), mbstr.length() );
 
-			int p = (float)rand() / RAND_MAX * 100;
-			if( !nico->isRandomPickup() ) p = 10000;
-			bool b = nico->isParticipant( data.at(1) );
-			// ランダムピックアップは 5% 固定で.
-			if( p<5 || b ){
-				dprintf( L"Your community(%s)'s broadcasting is started.\n", data[1].c_str() );
-				NicoNamaProgram program;
-				GetBroadcastingInfo( data[0], program );
-				program.playsound = b;
-				nico->addProgramQueue( program );
-			}
+		// <chat>ココ</chat>を取り出して , で分割.
+		xmlNodePtr root = xml.getRootNode();
+		if( !root || !root->children || !root->children->content ) continue;
+
+		std::vector<std::wstring> data;
+		std::wstring wtmp;
+		std::string text = (char*)root->children->content;
+		strtowstr( text, wtmp );
+		data = split( wtmp, std::wstring(L",") );
+
+		int p = (float)rand() / RAND_MAX * 100;
+		if( !nico->isRandomPickup() ) p = 10000;
+		bool ispart = nico->isParticipant( data.at(1) );
+		// ランダムピックアップは 5% 固定で.
+		if( p<5 || ispart ){
+			char*d = xml.FindAttribute( xml.getRootNode(), "date" );
+			std::string datestr = d?d:"0";
+#ifdef _USE_32BIT_TIME_T
+			time_t starttime = atoi( datestr.c_str() );
+#else
+			time_t starttime = _atoi64( datestr.c_str() );
+#endif
+			dprintf( L"Your community(%s)'s broadcasting is started.\n", data[1].c_str() );
+			NicoNamaProgram program;
+			GetBroadcastingInfo( data[0], program );
+			program.start	  = starttime;
+			program.playsound = ispart;
+			nico->addProgramQueue( program );
 		}
 	}
 	dprintf( L"NicoNamaAlert thread ended.\n" );
@@ -93,6 +109,7 @@ char*GetTextFromXMLRoot( tXML&xml, char*node )
 }
 
 /** 番組情報を取得する.
+ * getstreaminfoからもらえる情報のみをセットするので、他のメンバの設定は別のところで。
  * @param broadcastingid 番組ID
  * @param program 番組情報を保存する先
  */
@@ -102,7 +119,6 @@ int GetBroadcastingInfo( std::wstring broadcastingid, NicoNamaProgram &program )
 	std::wstring url;
 	char*data;
 	DWORD datalen;
-	char*tmp;
     int httpret;
 
 	url = NICONAMA_GETINFO;
@@ -211,6 +227,13 @@ void NicoNamaAlert::addProgramQueue( NicoNamaProgram &program )
 			m_program_queue.push( program );
 		}else{
 			ShowNicoNamaInfo( program );
+		}
+	}
+	if( 1 || program.playsound ){
+		// サウンド通知を行う＝参加コミュの放送≠ランダムピックアップ.
+		m_recent_program.push_back( program );
+		if( m_recent_program.size() > NICO_MAX_RECENT_PROGRAM ){
+			m_recent_program.pop_front();
 		}
 	}
 }

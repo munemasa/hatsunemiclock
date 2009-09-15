@@ -16,6 +16,18 @@ tXML::~tXML()
 	xmlCleanupParser();
 }
 
+char* tXML::FindAttribute( xmlNode*node, const char*attrname )
+{
+	xmlAttrPtr attr;
+	for( attr = node->properties; attr; attr=attr->next ){
+		if( attr->type==XML_ATTRIBUTE_NODE && strcmp((char*)attr->name,attrname)==0 ){
+			if( attr->children && attr->children->content ){
+				return (char*)attr->children->content;
+			}
+		}
+	}
+	return NULL;
+}
 
 // 指定のノード名を持つ最初のエレメントを返す.
 xmlNode* tXML::FindFirstNode( xmlNode*node, const char*nodename )
