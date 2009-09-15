@@ -325,6 +325,7 @@ void tNotifyWindow::Show( bool playsound )
 {
 	if( playsound ){
 		tPlaySound( m_soundfilename.c_str() );
+		m_playsound = playsound;
 	}
 	ShowWindow( m_hwnd, SW_SHOW );
 	UpdateWindow( m_hwnd );

@@ -25,6 +25,7 @@ class tNotifyWindow {
 	std::wstring	m_community_url;
 	std::wstring	m_live_url;
 	std::wstring	m_soundfilename;	// 再生するサウンドファイル名
+	bool			m_playsound;
 
 	void CreateToolTip();
 	void SetToolTip( const WCHAR*str );
@@ -39,6 +40,7 @@ public:
 	inline HWND getParentWindowHandle() const { return m_parenthwnd; }
 	inline HBRUSH getBkBrush() const { return m_bkbrush; }
 	inline HFONT getNormalFont() const { return m_normalfont; }
+	inline bool isPlaySound() const { return m_playsound; }
 
 	int SetWindowTitle( std::wstring &title );
 	int SetDescription( std::wstring &desc );
