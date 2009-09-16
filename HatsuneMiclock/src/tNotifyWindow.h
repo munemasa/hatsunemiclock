@@ -7,10 +7,14 @@
 
 
 #define T_NOTIFY_CLASS	L"Miku39_tBalloonClass"
+#define T_NOTIFY_WIN_H	(120)
 
 
 // ニコ生開始の通知ウィンドウ.
 class tNotifyWindow {
+	static const DWORD m_defStyle = (WS_POPUP | WS_CAPTION | WS_SYSMENU) & ~WS_DLGFRAME;
+	static const DWORD m_defExStyle = WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TOPMOST;
+
 	HWND	m_parenthwnd;
 	HWND	m_hwnd;
 	HWND	m_title;	// ユーザー生放送のタイトル名.
@@ -31,10 +35,16 @@ class tNotifyWindow {
 	void SetToolTip( const WCHAR*str );
 
 public:
+	bool inDrag;
+	int dragStartX;
+	int dragStartY;
+
+	static void getInitialPos( int&x, int&y, int&w, int&h );
+
 	tNotifyWindow( HINSTANCE hinst, HWND parent );
 	~tNotifyWindow();
 
-	void Show( bool playsound=false );
+	void Show( bool playsound=false, int posx=-1, int posy=-1 );
 
 	inline HWND getWindowHandle() const { return m_hwnd; }
 	inline HWND getParentWindowHandle() const { return m_parenthwnd; }

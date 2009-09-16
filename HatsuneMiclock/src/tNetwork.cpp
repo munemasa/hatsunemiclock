@@ -7,7 +7,7 @@
 #pragma comment(lib,"ws2_32.lib")
 #pragma comment(lib,"winhttp.lib")
 
-#define HTTP_USER_AGENT		L"HatsuneMiclock/0.4"
+#define HTTP_USER_AGENT		L"HatsuneMiclock/0.5"
 
 // http‚ÅŽæ“¾‚µ‚½ƒtƒ@ƒCƒ‹‚ðD:\test-XXXX.txt‚É•Û‘¶‚·‚é.
 //#define HTTP_STORE_FILE
@@ -140,7 +140,9 @@ int tHttp::request( const WCHAR*url, char**data, DWORD*datalen, const char*postd
 								 m_host,
 								 m_urlcomp.nPort, 
                                  0);
-	if( m_hConnect==NULL ){ r = -1; goto end; }
+	if( m_hConnect==NULL ){
+		r = -1; goto end;
+	}
 
 	// request
     m_hRequest = WinHttpOpenRequest( m_hConnect, 
@@ -150,7 +152,9 @@ int tHttp::request( const WCHAR*url, char**data, DWORD*datalen, const char*postd
                                      WINHTTP_NO_REFERER, 
                                      WINHTTP_DEFAULT_ACCEPT_TYPES,
 									 m_urlcomp.nScheme==INTERNET_SCHEME_HTTPS?WINHTTP_FLAG_SECURE:0 );
-	if( m_hRequest==NULL ){ r = -1; goto end; }
+	if( m_hRequest==NULL ){
+		r = -1; goto end;
+	}
 
 	b = WinHttpAddRequestHeaders( m_hRequest,
 		                         L"Content-Type: application/x-www-form-urlencoded", -1,
@@ -164,11 +168,15 @@ int tHttp::request( const WCHAR*url, char**data, DWORD*datalen, const char*postd
 							postlen,							// dwOptionalLength
 							postlen,							// dwTotalLength
 							0);									// dwContext
-	if( !b ){ r = -1; goto end; }
+	if( !b ){
+		r = -1; goto end;
+	}
 
 	// receive
 	b = WinHttpReceiveResponse( m_hRequest, NULL);
-	if( !b ){ r = -1; goto end; }
+	if( !b ){
+		r = -1; goto end;
+	}
 
 	DWORD dwBufferLength;
 	WinHttpQueryHeaders( m_hRequest,

@@ -23,10 +23,6 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 {
 	tNotifyWindow*notify;
 	int x,y;
-	// 1つしかウィンドウ出さないようにしているからstaticでいいか.
-	static bool inDrag = false;
-	static int dragStartX = 0;
-	static int dragStartY = 0;
 
 	switch( message ){
 	case WM_CREATE:
@@ -72,8 +68,8 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 		break;
 
 	case WM_CLOSE:
-		inDrag = false;
 		notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
+		notify->inDrag = false;
 		PostMessage( notify->getParentWindowHandle(), WM_NNA_NOTIFY, NNA_CLOSED_NOTIFYWINDOW, 0 );
 		delete notify;
 		dprintf( L"Delete tNotifyWindow %p\n", notify );
@@ -89,7 +85,6 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 		y = HIWORD( lParam );
 		if( x>=PICTURE_X && x<=PICTURE_X+64 && y>=PICTURE_Y && y<=PICTURE_Y+64 ){
 			SetCursor( LoadCursor(NULL, IDC_ARROW) );
-			tNotifyWindow*notify;
 			notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
 			dprintf( L"Thumbnail clicked\n" );
 			HINSTANCE r = ShellExecute(NULL, NULL, notify->GetLiveURL().c_str(), NULL, NULL, SW_SHOWNORMAL);
@@ -104,20 +99,22 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 		}else if( x>=rect.left && x<=rect.right && y>=rect.top && y<=rect.bottom ){
 			PostMessage( hWnd, WM_CLOSE, 0, 0 );
 		}else{
-			inDrag = true;
-			dragStartX = LOWORD(lParam);
-			dragStartY = HIWORD(lParam);
+			notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
+			notify->inDrag = true;
+			notify->dragStartX = LOWORD(lParam);
+			notify->dragStartY = HIWORD(lParam);
 			SetCapture( hWnd );
 		}
 		return 0;
 		break;}
 
 	case WM_MOUSEMOVE:
-        if( inDrag ){
+		notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
+        if( notify->inDrag ){
             POINT point;
             GetCursorPos( &point );
 			RECT rect;
-			int screenx = point.x-dragStartX, screeny = point.y-dragStartY;
+			int screenx = point.x-notify->dragStartX, screeny = point.y-notify->dragStartY;
 			GetWindowRect( hWnd, &rect );
 			SetWindowPos( hWnd, HWND_TOP, screenx, screeny, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE);
 		}else{
@@ -139,7 +136,8 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 		break;
     case WM_LBUTTONUP:
         // finish moving window.
-        inDrag = false;
+		notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
+        notify->inDrag = false;
         ReleaseCapture();
 		return 0;
 
@@ -224,35 +222,15 @@ BOOL Is_WinXP_SP2_or_Later()
 	dwlConditionMask);
 }
 
-
-tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
+void tNotifyWindow::getInitialPos( int&x, int&y, int&w, int&h )
 {
-	m_soundfilename = L"nc11846.mp3";
-	m_bitmap = NULL;
-	m_parenthwnd = parent;
-	m_bkbrush = CreateSolidBrush( GetSysColor( COLOR_WINDOW ) );
+	DWORD dwStyle   = m_defStyle;
+	DWORD dwExStyle = m_defExStyle;
 
-	WNDCLASSEX wc;
-	ZeroMemory( &wc, sizeof(wc) );
-	wc.cbSize = sizeof(wc);
-
-	wc.style = Is_WinXP_SP2_or_Later() ? CS_DROPSHADOW : 0;
-	wc.lpfnWndProc = NotifyWindowProc;
-	wc.hInstance = hinst;
-	wc.hCursor = LoadCursor(0, IDC_ARROW);
-	wc.lpszClassName = T_NOTIFY_CLASS;
-	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
-	if( RegisterClassEx( &wc )==NULL ){
-		DWORD err = GetLastError();
-		dprintf( L"tNotifyWindow RegisterClass errorcode=%d\n", err );
-	}
-
-	DWORD dwStyle = (WS_POPUP | WS_CAPTION | WS_SYSMENU) & ~WS_DLGFRAME;
-	DWORD dwExStyle = WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TOPMOST;
-	int x = 0;
-	int y = 0;
-	int w = 280;
-	int h = 120;
+	x = 0;
+	y = 0;
+	w = 280;
+	h = T_NOTIFY_WIN_H;
 
     RECT rc;
 	rc.top = y;
@@ -278,6 +256,40 @@ tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
 		x = bardata.rc.left - w -5;
 		y = GetSystemMetrics( SM_CYSCREEN ) - h -5;
 	}
+}
+
+
+tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
+{
+	inDrag = false;
+	dragStartX = 0;
+	dragStartY = 0;
+
+	m_soundfilename = L"nc11846.mp3";
+	m_bitmap = NULL;
+	m_parenthwnd = parent;
+	m_bkbrush = CreateSolidBrush( GetSysColor( COLOR_WINDOW ) );
+
+	WNDCLASSEX wc;
+	ZeroMemory( &wc, sizeof(wc) );
+	wc.cbSize = sizeof(wc);
+
+	wc.style = Is_WinXP_SP2_or_Later() ? CS_DROPSHADOW : 0;
+	wc.lpfnWndProc = NotifyWindowProc;
+	wc.hInstance = hinst;
+	wc.hCursor = LoadCursor(0, IDC_ARROW);
+	wc.lpszClassName = T_NOTIFY_CLASS;
+	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
+	if( RegisterClassEx( &wc )==NULL ){
+		DWORD err = GetLastError();
+		dprintf( L"tNotifyWindow RegisterClass errorcode=%d\n", err );
+	}
+
+	DWORD dwStyle = m_defStyle;
+	DWORD dwExStyle = m_defExStyle;
+	int x,y,w,h;
+
+	getInitialPos(x,y,w,h);
 	m_hwnd = CreateWindowEx( dwExStyle, T_NOTIFY_CLASS, L"", dwStyle,
 		                     x, y, w, h, parent, NULL, NULL, NULL );
 	if( m_hwnd==NULL ){
@@ -355,6 +367,7 @@ tNotifyWindow::~tNotifyWindow()
 	DestroyWindow( m_desc );
 	DestroyWindow( m_thumb );
 	DestroyWindow( m_hwnd );
+	DestroyWindow( m_tooltip );
 	SAFE_DELETE( m_bitmap );
 	dprintf( L"Deleted tNotifyWindow.\n" );
 }
@@ -362,11 +375,14 @@ tNotifyWindow::~tNotifyWindow()
 /** ウィンドウを表示する.
  * @param playsound 表示時に効果音を再生するかどうか.
  */
-void tNotifyWindow::Show( bool playsound )
+void tNotifyWindow::Show( bool playsound, int posx, int posy )
 {
 	if( playsound ){
 		tPlaySound( m_soundfilename.c_str() );
 		m_playsound = playsound;
+	}
+	if( posx>=0 && posy>=0 ){
+		SetWindowPos( m_hwnd, HWND_TOP, posx, posy, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE);
 	}
 	ShowWindow( m_hwnd, SW_SHOW );
 	UpdateWindow( m_hwnd );

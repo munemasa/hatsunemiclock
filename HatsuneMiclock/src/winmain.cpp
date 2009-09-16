@@ -808,7 +808,7 @@ void CreateNicoNamaNotify( NicoNamaProgram*program )
 	notifywin->SetCommunityURL( str );
 	notifywin->setSoundFile( g_config.nico_notify_sound );
 
-	notifywin->Show( program->playsound );
+	notifywin->Show( program->playsound, program->posx, program->posy );
 }
 
 LRESULT OnNicoNamaNotify( HWND hwnd, WPARAM wparam, LPARAM lparam )
@@ -1166,24 +1166,6 @@ void NicoNamaLogin( HWND hWnd )
 		return;
 	}
 
-#if 0
-	std::vector<std::string> argv;
-	std::vector<std::string>::iterator it;
-	std::string s;
-
-    // 仮でコマンドラインパラメータ /user:your@example.com:password で指定.
-	wstrtostr( g_miku.cmdline, s );
-	argv = split( s, std::string(" ") );
-	for( it=argv.begin(); it!=argv.end(); it++ ){
-		if( (*it).find( "/user", 0 )!=std::string::npos ){
-			std::vector<std::string> param;
-			param = split( *it, std::string(":") );
-			userid = param[1];
-			userpassword = param[2];
-		}
-	}
-#endif
-
 	g_miku.nico = new NicoNamaAlert( g_miku.hInst, g_miku.pWindow->getWindowHandle() );
 	g_miku.nico->setDisplayType( NicoNamaAlert::NNA_WINDOW );
 	if( g_miku.cmdline.find(L"/balloon")!=std::wstring::npos ){
@@ -1214,7 +1196,7 @@ void NicoNamaLogin( HWND hWnd )
 			g_miku.nico->setRandomPickup( false );
 		}
 		dprintf( L"Logged in to Niconama.\n" );
-		_beginthread( thNicoNamaAlert, 0, g_miku.nico );
+		g_miku.nico->startThread();
 	}else{
 		SAFE_DELETE( g_miku.nico );
 
@@ -1531,12 +1513,18 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
     return DefWindowProc( hWnd, message, wParam, lParam );
 }
 
+//test
+unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v);
+
 
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
     InitMikuClock();
     LoadMikuImage();
     UpdateMikuClock();
+
+	//NicoNamaAlert nicotmp(0,0);
+	//thNicoNamaRetriveAllRSS( &nicotmp );
 
 	g_miku.cmdline = lpCmdLine;
 
