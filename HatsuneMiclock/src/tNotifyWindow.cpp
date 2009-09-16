@@ -366,8 +366,8 @@ tNotifyWindow::~tNotifyWindow()
 	DestroyWindow( m_title );
 	DestroyWindow( m_desc );
 	DestroyWindow( m_thumb );
-	DestroyWindow( m_hwnd );
 	DestroyWindow( m_tooltip );
+	DestroyWindow( m_hwnd );
 	SAFE_DELETE( m_bitmap );
 	dprintf( L"Deleted tNotifyWindow.\n" );
 }

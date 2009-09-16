@@ -168,29 +168,39 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 		int total_num = 0;
 
 		channel = xml.FindFirstNodeFromRoot("channel");
-        total_num = nico->addRSSProgram( channel );
+        total_num = nico->addRSSProgram( channel );	// 1ページ目.
 
-		int maxpages = (total_num-1)/18+1;// 1ページ18件あるので.
-		for( int cnt=2; cnt<=maxpages; cnt++ ){
-			//std::list<RssReadRequest*> subreqlist;
-			RssReadRequest req;
-			wchar_t tmp[128];
-			req.rssurl = g_rsslist[(*it)->index];
-			req.rssurl += _itow( cnt, tmp, 10 );
-			// 後々スレッドで同時アクセスするときのためにスレッドで取得してこよう.
-			req.hThread = (HANDLE)_beginthreadex( NULL, 0, thRetrieveRSS, &req, 0, NULL );
-			if( req.hThread==(HANDLE)1L ){
-				// error occurred
-				break;
+		int maxpages = (total_num-1)/18+1;	// 1ページ18件あるので.
+		for( int cnt=2; cnt<=maxpages; ){
+			std::list<RssReadRequest*> subreqlist;
+
+			// 5ページ同時に要求.
+			for(int j=0; j<5 && cnt<=maxpages; cnt++,j++){
+				RssReadRequest *subreq = new RssReadRequest();
+				wchar_t tmp[128];
+				subreq->rssurl = g_rsslist[(*it)->index];
+				subreq->rssurl += _itow( cnt, tmp, 10 );
+				subreq->hThread = (HANDLE)_beginthreadex( NULL, 0, thRetrieveRSS, subreq, 0, NULL );
+				if( subreq->hThread==(HANDLE)1L ){
+					// error occurred
+					int err = errno;
+					delete subreq;
+					break;
+				}
+				subreqlist.push_back( subreq );
 			}
-			WaitForSingleObject( req.hThread, INFINITE );
 
-			tXML xml( req.data, req.datalen );
-			xmlNodePtr channel;
-			channel = xml.FindFirstNodeFromRoot("channel");
-            nico->addRSSProgram( channel );
-			CloseHandle( req.hThread );
-			free( req.data );
+			std::list<RssReadRequest*>::iterator subit;
+			for( subit=subreqlist.begin(); subit!=subreqlist.end(); subit++ ){
+				WaitForSingleObject( (*subit)->hThread, INFINITE );
+
+				tXML xml( (*subit)->data, (*subit)->datalen );
+				xmlNodePtr channel;
+				channel = xml.FindFirstNodeFromRoot("channel");
+				nico->addRSSProgram( channel );
+				CloseHandle( (*subit)->hThread );
+				free( (*subit)->data );
+			}
 		}
 		CloseHandle( (*it)->hThread );
 		free( (*it)->data );
