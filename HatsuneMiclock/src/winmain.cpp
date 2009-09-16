@@ -1185,8 +1185,10 @@ void NicoNamaLogin( HWND hWnd )
 #endif
 
 	g_miku.nico = new NicoNamaAlert( g_miku.hInst, g_miku.pWindow->getWindowHandle() );
-	//g_miku.nico->setDisplayType( NicoNamaAlert::NNA_BALLOON );
 	g_miku.nico->setDisplayType( NicoNamaAlert::NNA_WINDOW );
+	if( g_miku.cmdline.find(L"/balloon")!=std::wstring::npos ){
+		g_miku.nico->setDisplayType( NicoNamaAlert::NNA_BALLOON );
+	}
 
 	wstrtostr( g_config.nico_id, userid );
 	wstrtostr( g_config.nico_password, userpassword );

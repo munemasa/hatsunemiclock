@@ -194,7 +194,7 @@ CAPTION "バージョン情報"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
     DEFPUSHBUTTON   "OK",IDYES,82,101,41,20
-    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.4",IDC_STATIC,40,17,127,8
+    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.5",IDC_STATIC,40,17,127,8
     LTEXT           "Programmed by あまの",IDC_STATIC,40,33,65,8
     LTEXT           "「初音ミク」はクリプトン・フューチャー・メディア株式会社の著作物です。\n(C) Crypton Future Media, Inc.",IDC_STATIC,10,62,187,19
 END
@@ -250,8 +250,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,0,0,4
- PRODUCTVERSION 0,0,0,4
+ FILEVERSION 0,0,0,5
+ PRODUCTVERSION 0,0,0,5
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -268,12 +268,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Miku39.jp"
             VALUE "FileDescription", "初音ミクロック"
-            VALUE "FileVersion", "0, 0, 0, 4"
+            VALUE "FileVersion", "0, 0, 0, 5"
             VALUE "InternalName", "HatsuneMiclock"
             VALUE "LegalCopyright", "Copyright (C) 2009"
             VALUE "OriginalFilename", "HatsuneMiclock.exe"
             VALUE "ProductName", "Hatsune Miclock"
-            VALUE "ProductVersion", "0, 0, 0, 4"
+            VALUE "ProductVersion", "0, 0, 0, 5"
         END
     END
     BLOCK "VarFileInfo"

@@ -193,6 +193,38 @@ void tNotifyWindow::SetToolTip( const WCHAR*str )
 }
 
 
+BOOL Is_WinXP_SP2_or_Later()
+{
+	OSVERSIONINFOEX osvi;
+	DWORDLONG dwlConditionMask = 0;
+	int op=VER_GREATER_EQUAL;
+
+	// Initialize the OSVERSIONINFOEX structure.
+
+	ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+	osvi.dwMajorVersion = 5;
+	osvi.dwMinorVersion = 1;
+	osvi.wServicePackMajor = 2;
+	osvi.wServicePackMinor = 0;
+
+	// Initialize the condition mask.
+
+	VER_SET_CONDITION( dwlConditionMask, VER_MAJORVERSION, op );
+	VER_SET_CONDITION( dwlConditionMask, VER_MINORVERSION, op );
+	VER_SET_CONDITION( dwlConditionMask, VER_SERVICEPACKMAJOR, op );
+	VER_SET_CONDITION( dwlConditionMask, VER_SERVICEPACKMINOR, op );
+
+	// Perform the test.
+
+	return VerifyVersionInfo(
+	&osvi, 
+	VER_MAJORVERSION | VER_MINORVERSION | 
+	VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
+	dwlConditionMask);
+}
+
+
 tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
 {
 	m_soundfilename = L"nc11846.mp3";
@@ -203,13 +235,17 @@ tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
 	WNDCLASSEX wc;
 	ZeroMemory( &wc, sizeof(wc) );
 	wc.cbSize = sizeof(wc);
-	wc.style = CS_DROPSHADOW;
+
+	wc.style = Is_WinXP_SP2_or_Later() ? CS_DROPSHADOW : 0;
 	wc.lpfnWndProc = NotifyWindowProc;
 	wc.hInstance = hinst;
 	wc.hCursor = LoadCursor(0, IDC_ARROW);
 	wc.lpszClassName = T_NOTIFY_CLASS;
 	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW+1);
-	RegisterClassEx( &wc );
+	if( RegisterClassEx( &wc )==NULL ){
+		DWORD err = GetLastError();
+		dprintf( L"tNotifyWindow RegisterClass errorcode=%d\n", err );
+	}
 
 	DWORD dwStyle = (WS_POPUP | WS_CAPTION | WS_SYSMENU) & ~WS_DLGFRAME;
 	DWORD dwExStyle = WS_EX_TOOLWINDOW | WS_EX_LAYERED | WS_EX_TOPMOST;
@@ -244,6 +280,11 @@ tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
 	}
 	m_hwnd = CreateWindowEx( dwExStyle, T_NOTIFY_CLASS, L"", dwStyle,
 		                     x, y, w, h, parent, NULL, NULL, NULL );
+	if( m_hwnd==NULL ){
+		DWORD err = GetLastError();
+		dprintf( L"tNotifyWindow: %d,%d,%d,%d, HWND:%p, errorcode=%d\n", x,y,w,h, m_hwnd, err );
+	}
+
 	COLORREF col = 0x00ffffff;
 	BYTE alpha = 224;
 	SetLayeredWindowAttributes( m_hwnd, col, alpha, LWA_ALPHA );
