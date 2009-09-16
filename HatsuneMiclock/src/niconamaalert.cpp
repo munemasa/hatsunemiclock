@@ -174,8 +174,8 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 		for( int cnt=2; cnt<=maxpages; ){
 			std::list<RssReadRequest*> subreqlist;
 
-			// 5ページ同時に要求.
-			for(int j=0; j<5 && cnt<=maxpages; cnt++,j++){
+			// 2ページ同時に要求.
+			for(int j=0; j<2 && cnt<=maxpages; cnt++,j++){
 				RssReadRequest *subreq = new RssReadRequest();
 				wchar_t tmp[128];
 				subreq->rssurl = g_rsslist[(*it)->index];
