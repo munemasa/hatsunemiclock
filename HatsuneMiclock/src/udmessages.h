@@ -13,7 +13,7 @@ enum {
 
 // WM_NNA_NOTIFY用のコマンド.
 #define NNA_REQUEST_CREATEWINDOW	(1)
-#define NNA_CLOSED_NOTIFYWINDOW		(2)
+#define NNA_CLOSED_NOTIFYWINDOW		(2)		// 通知ウィンドウが0個になったときに親ウィンドウに通知される.
 
 // WM_TIMERのID
 enum {

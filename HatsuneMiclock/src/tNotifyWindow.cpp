@@ -7,6 +7,7 @@
 
 #include "debug.h"
 
+static volatile LONG g_numofwin = 0;
 
 enum {
 	IDS_THUMB = 1000,
@@ -26,6 +27,7 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 
 	switch( message ){
 	case WM_CREATE:
+		InterlockedIncrement( &g_numofwin );
 		SetTimer( hWnd, 1, 10*1000, NULL );
 		break;
 
@@ -68,9 +70,13 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 		break;
 
 	case WM_CLOSE:
+		InterlockedDecrement( &g_numofwin );
 		notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
 		notify->inDrag = false;
-		PostMessage( notify->getParentWindowHandle(), WM_NNA_NOTIFY, NNA_CLOSED_NOTIFYWINDOW, 0 );
+		if( g_numofwin<=0 ){
+
+			PostMessage( notify->getParentWindowHandle(), WM_NNA_NOTIFY, NNA_CLOSED_NOTIFYWINDOW, 0 );
+		}
 		delete notify;
 		dprintf( L"Delete tNotifyWindow %p\n", notify );
 		break;
@@ -267,6 +273,7 @@ tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
 
 	m_soundfilename = L"nc11846.mp3";
 	m_bitmap = NULL;
+	m_hBitmap = NULL;
 	m_parenthwnd = parent;
 	m_bkbrush = CreateSolidBrush( GetSysColor( COLOR_WINDOW ) );
 
@@ -368,6 +375,7 @@ tNotifyWindow::~tNotifyWindow()
 	DestroyWindow( m_thumb );
 	DestroyWindow( m_tooltip );
 	DestroyWindow( m_hwnd );
+	DeleteObject( m_hBitmap );
 	SAFE_DELETE( m_bitmap );
 	dprintf( L"Deleted tNotifyWindow.\n" );
 }
@@ -428,13 +436,13 @@ int tNotifyWindow::SetThumbnail( char*jpegimage, int sz )
 
 	IStream *stream = NULL;
 	if( CreateStreamOnHGlobal( mem, FALSE, &stream )==S_OK ){
-		HBITMAP hBitmap;
+		if( m_hBitmap ) DeleteObject(m_hBitmap);
 		SAFE_DELETE( m_bitmap );
 		m_bitmap = Gdiplus::Bitmap::FromStream( stream );
 		Gdiplus::Color col(0,0,0);
-		m_bitmap->GetHBITMAP( col, &hBitmap );
+		m_bitmap->GetHBITMAP( col, &m_hBitmap );
 		stream->Release();
-		SendMessage( m_thumb, STM_SETIMAGE, IMAGE_BITMAP, (LPARAM)hBitmap );
+		SendMessage( m_thumb, STM_SETIMAGE, IMAGE_BITMAP, (LPARAM)m_hBitmap );
 	}
 	GlobalUnlock( mem );
 	GlobalFree( mem );

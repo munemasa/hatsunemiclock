@@ -21,6 +21,7 @@ class tNotifyWindow {
 	HWND	m_desc;		// 説明.
 	HWND	m_thumb;	// サムネ.
 	Gdiplus::Bitmap *m_bitmap;	// サムネのビットマップ.
+	HBITMAP	m_hBitmap;			// そのハンドル.
 	HFONT	m_normalfont;
 	HFONT	m_boldfont;
 	HWND	m_tooltip;
