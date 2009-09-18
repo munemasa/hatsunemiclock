@@ -37,6 +37,7 @@ http://dic.nicovideo.jp/a/%E3%83%8B%E3%82%B3%E7%94%9F%E3%82%A2%E3%83%A9%E3%83%BC
 #define NICONAMA_LOGIN2			L"http://live.nicovideo.jp/api/getalertstatus"
 #define NICONAMA_GETINFO		L"http://live.nicovideo.jp/api/getstreaminfo/lv"
 
+
 //----------------------------------------------------------------------
 // prototype
 //----------------------------------------------------------------------
@@ -61,12 +62,23 @@ struct RssReadRequest {
 	int index;
 };
 
+// RSSを取得して更新通知を投げるまでをやるスレッド.
+static void thNicoNamaAlertGetRSSAndUpdate(LPVOID v)
+{
+	NicoNamaAlert *nico = (NicoNamaAlert*)v;
+	dprintf( L"Retrieving RSS...\n" );
+	nico->getAllRSS();
+	dprintf( L"done.\n" );
+	// 番組リストを更新させる.
+	SendMessage( nico->getParentHWND(), WM_NNA_NOTIFY, NNA_UPDATE_RSS, (LPARAM)nico->getRSSProgram() );
+	_endthread();
+}
 
 /** ニコ生アラート受信スレッド.
  *
  * @note CRT使うので _beginthread() で開始. 呼び出し規則は__cdecl
  */
-void thNicoNamaAlertReceiver(LPVOID v)
+static void thNicoNamaAlertReceiver(LPVOID v)
 {
 	std::wstring str;
 	NicoNamaAlert *nico = (NicoNamaAlert*)v;
@@ -76,8 +88,14 @@ void thNicoNamaAlertReceiver(LPVOID v)
 	nico->getAllRSS();
 	dprintf( L"done.\n" );
 
+	SetTimer( nico->getParentHWND(), TIMER_ID_RSS_UPDATE, NICONAMA_RSS_GET_INTERVAL*60*1000, NULL );
+
+	// RSSで取得した情報を元に通知をする.
 	nico->notifyFromRSS();
 	nico->keepalive();	// 受信開始する.
+
+	// 番組リストを更新させる.
+	SendMessage( nico->getParentHWND(), WM_NNA_NOTIFY, NNA_UPDATE_RSS, (LPARAM)nico->getRSSProgram() );
 
 	while(1){
 		int r;
@@ -174,7 +192,7 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 		for( int cnt=2; cnt<=maxpages; ){
 			std::list<RssReadRequest*> subreqlist;
 
-			// 2ページ同時に要求.
+			// (HTTP/1.1なので)2ページ同時に要求.
 			for(int j=0; j<2 && cnt<=maxpages; cnt++,j++){
 				RssReadRequest *subreq = new RssReadRequest();
 				wchar_t tmp[128];
@@ -253,6 +271,7 @@ int GetBroadcastingInfoFromRSS( xmlNodePtr item, NicoNamaRSSProgram &program )
 			struct tm tm;
 			char buf[128];
 			int i;
+			ZeroMemory( &tm, sizeof(tm) );
 			sscanf( get_textcontent( node ),
 					"%*s %d %s %d %d:%d:%d %*s",
 					&tm.tm_mday, buf, &tm.tm_year,
@@ -270,7 +289,9 @@ int GetBroadcastingInfoFromRSS( xmlNodePtr item, NicoNamaRSSProgram &program )
 			program.description = get_textcontent( node );
 
 		}else if( strcmp( (char*)node->name, "category" )==0 ){
-			program.category = get_textcontent( node );
+			if( !program.category.length() ){
+				program.category = get_textcontent( node );
+			}
 
 		}else if( strcmp( (char*)node->name, "thumbnail" )==0 ){
 			xmlAttrPtr prop = node->properties;
@@ -664,6 +685,12 @@ int NicoNamaAlert::notifyFromRSS()
 HANDLE NicoNamaAlert::startThread()
 {
 	return (HANDLE)_beginthread( thNicoNamaAlertReceiver, 0, this );
+}
+
+int NicoNamaAlert::getAllRSSAndUpdate()
+{
+	_beginthread( thNicoNamaAlertGetRSSAndUpdate, 0, this );
+	return 0;
 }
 
 int NicoNamaAlert::receive( std::wstring &str )

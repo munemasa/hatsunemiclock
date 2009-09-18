@@ -158,11 +158,29 @@ BEGIN
         MENUITEM "いま何時？",                       ID_BTN_WHATTIMEISITNOW
         MENUITEM "3分タイマー",                      ID_BTN_3MIN
         MENUITEM SEPARATOR
-        MENUITEM "ニコ生に接続...(&C)",               ID_BTN_NOCOLOGIN
+        POPUP "ニコニコ生放送"
+        BEGIN
+            MENUITEM "サーバに接続...(C)",                ID_BTN_NOCOLOGIN
+            MENUITEM "現在の番組一覧",                     ID_BTN_BROADCASTING_LIST
+        END
         MENUITEM "設定...(&S)",                   ID_BTN_SETTING
         MENUITEM "バージョン情報...(&A)",              ID_BTN_ABOUT
         MENUITEM SEPARATOR
         MENUITEM "終了(&Q)",                      ID_BTN_QUIT
+    END
+END
+
+IDR_LISTWINDOWMENU MENU 
+BEGIN
+    MENUITEM "フィルタ(&F)",                    ID_MENU_BTN_SEARCH
+END
+
+IDR_LISTWINDOW_CONTEXTMENU MENU 
+BEGIN
+    POPUP "0"
+    BEGIN
+        MENUITEM "生放送のページに行く",                  ID_BTN_GO_BORADCASTING
+        MENUITEM "コミュニティのページに行く",               ID_BTN_GO_COMMUNITY
     END
 END
 
@@ -194,7 +212,7 @@ CAPTION "バージョン情報"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
     DEFPUSHBUTTON   "OK",IDYES,82,101,41,20
-    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.5",IDC_STATIC,40,17,127,8
+    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.6",IDC_STATIC,40,17,127,8
     LTEXT           "Programmed by あまの",IDC_STATIC,40,33,65,8
     LTEXT           "「初音ミク」はクリプトン・フューチャー・メディア株式会社の著作物です。\n(C) Crypton Future Media, Inc.",IDC_STATIC,10,62,187,19
 END
@@ -236,11 +254,15 @@ BEGIN
     PUSHBUTTON      "キャンセル",IDCANCEL,158,110,41,18
 END
 
-IDD_PROPPAGE_LARGE DIALOGEX 0, 0, 235, 156
-STYLE DS_SETFONT | DS_CENTER | WS_CHILD | WS_DISABLED | WS_CAPTION
-CAPTION "プロパティ ページ"
+IDD_SEARCH_DIALOG DIALOGEX 0, 0, 243, 72
+STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "番組のフィルタ"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
+    EDITTEXT        IDC_EDIT_SEARCHSTRING,11,13,166,20,ES_AUTOHSCROLL
+    DEFPUSHBUTTON   "フィルタリング",IDC_BTN_SEARCH,184,13,46,20
+    PUSHBUTTON      "解除",IDCANCEL,184,42,46,20
+    LTEXT           "※正規表現で入力してください(Perl compatible)",IDC_STATIC,11,40,134,8
 END
 
 
@@ -250,8 +272,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,0,0,5
- PRODUCTVERSION 0,0,0,5
+ FILEVERSION 0,0,0,6
+ PRODUCTVERSION 0,0,0,6
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -268,12 +290,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Miku39.jp"
             VALUE "FileDescription", "初音ミクロック"
-            VALUE "FileVersion", "0, 0, 0, 5"
+            VALUE "FileVersion", "0, 0, 0, 6"
             VALUE "InternalName", "HatsuneMiclock"
             VALUE "LegalCopyright", "Copyright (C) 2009"
             VALUE "OriginalFilename", "HatsuneMiclock.exe"
             VALUE "ProductName", "Hatsune Miclock"
-            VALUE "ProductVersion", "0, 0, 0, 5"
+            VALUE "ProductVersion", "0, 0, 0, 6"
         END
     END
     BLOCK "VarFileInfo"
@@ -309,14 +331,16 @@ BEGIN
     IDS_TEXT_YPOSITION      "131"
     IDS_BOARD_XPOSITION     "60"
     IDS_BOARD_YPOSITION     "125"
-    IDS_ERR_ALREADY_CONNECTED "ニコ生サーバにすでに接続しています。"
-    IDS_ERR_AUTH_FAILED     "認証に失敗しました。\nメールアドレスかパスワードが間違っています。"
+    IDS_ERR_ALREADY_CONNECTED "サーバーにすでに接続しています。"
+    IDS_ERR_AUTH_FAILED     "認証に失敗しました。\nメールアドレス、パスワードが間違っているか、サーバーがメンテナンス中です。"
     IDS_ERR_AUTH_FAILED_CAPTION "認証の失敗"
     IDS_ERR_CAPTION         "エラー"
-    IDS_ERR_CONNECT_FAILED  "コメントサーバに接続できませんでした。"
+    IDS_ERR_CONNECT_FAILED  "コメントサーバーに接続できませんでした。"
     IDS_ERR_CONNECT_FAILED_CAPTION "接続の失敗"
     IDS_MENU_TRACKLIST      "トラックリスト"
     IDS_MENU_NICO_RECENT    "最近のニコ生放送"
+    IDS_NICO_CONNECTED      "サーバーに接続しました。"
+    IDS_NICO_PROGRAM_LIST_CAPTION "番組一覧 -10分間隔で更新- "
 END
 
 #endif    // 日本語 resources

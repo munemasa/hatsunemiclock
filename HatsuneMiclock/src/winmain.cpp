@@ -10,10 +10,13 @@ using namespace Gdiplus;
 #include "iTunesLib.h"
 #include "tNetwork.h"
 #include "tNotifyWindow.h"
+#include "tListWindow.h"
 #include "tPlaySound.h"
-#include "udmessages.h"
+
 #include "niconamaalert.h"
+#include "udmessages.h"
 #include "stringlib.h"
+#include "misc.h"
 
 #include "../resource.h"
 
@@ -22,6 +25,8 @@ using namespace Gdiplus;
 #pragma comment(lib,"gdiplus.lib")
 #pragma comment(lib,"winmm.lib")		// windows multimedia
 #pragma comment(lib,"comctl32.lib")		// common control
+#pragma comment(lib,"pcre.lib")
+
 #pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 
@@ -49,7 +54,14 @@ struct T_MIKU_CONFIG {
 	std::wstring	nico_id;
 	std::wstring	nico_password;		// ここのパスワードは常時符号化済みのもので.
 	DWORD			nico_autologin;
+
+	// 番組ウィンドウの大きさ.
+	DWORD			nico_listwin_x;
+	DWORD			nico_listwin_y;
+	DWORD			nico_listwin_w;
+	DWORD			nico_listwin_h;
 }g_config;
+
 
 struct T_MIKU_CLOCK {
 	WNDPROC		pOldWndProc;
@@ -81,13 +93,15 @@ struct T_MIKU_CLOCK {
 
 	bool		inSpeak;	// 現在時刻を喋り中.
 
+	bool		noiTunes;
 	IiTunes			*iTunes;        // iTunes COMのインスタンス.
 	DWORD			iTunesEndTime;  // iTunesが終了する時刻.
 	long			iTunesVolume;   // iTunesのボリューム.
 	std::wstring	currentmusic;
 	std::wstring	currentartist;
 
-	NicoNamaAlert	*nico;
+	NicoNamaAlert	*nico_alert;
+	tListWindow		*nico_listbc;	// list of niconama broadcast
 } g_miku;
 
 
@@ -97,14 +111,13 @@ void UpdateToolTipHelp( WCHAR*str,... );
 LRESULT CALLBACK SubWindowProc( HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam );
 
 
-std::wstring GetStringFromResource( UINT resourceid )
+void CheckCommandLineOption()
 {
-	std::wstring str;
-	WCHAR buf[BUF_STRING_SIZE];
-	ZeroMemory( buf, sizeof(buf) );
-	LoadString( GetModuleHandle(NULL), resourceid, buf, BUF_STRING_SIZE );
-	str = buf;
-	return str;
+	if( g_miku.cmdline.find(L"/noitunes")!=std::wstring::npos ){
+		g_miku.noiTunes = true;
+	}else{
+		g_miku.noiTunes = false;
+	}
 }
 
 
@@ -188,6 +201,24 @@ void RegisterTaskTrayIcon()
 	Shell_NotifyIcon( NIM_ADD, &trayicon );
 }
 
+void SetTaskTrayBalloonMessage( std::wstring &wstr )
+{
+	NOTIFYICONDATA icon;
+	ZeroMemory( &icon, sizeof(icon) );
+	icon.cbSize = sizeof(icon);
+	icon.hWnd = g_miku.pWindow->getWindowHandle();
+	icon.uVersion = NOTIFYICON_VERSION;
+	icon.uFlags = NIF_INFO;
+
+	// wcsncpy( icon.szInfoTitle, wstr.c_str(), 63 );
+	wcsncpy( icon.szInfo, wstr.c_str(), 255 );
+
+	icon.uTimeout = 20*1000;
+	icon.dwInfoFlags = NIIF_INFO;
+
+	Shell_NotifyIcon( NIM_MODIFY, &icon );
+}
+
 // ウィンドウを削除する前に呼ぶ.
 void UnregisterTaskTrayIcon()
 {
@@ -264,6 +295,7 @@ void SaveToRegistory()
     if( g_config.trans_rate > 255) g_config.trans_rate = 255;
 
 	RegCreateKeyEx( HKEY_CURRENT_USER, REG_SUBKEY, 0, L"", REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hkey, NULL );
+
 	GetWindowRect( g_miku.pWindow->getWindowHandle(), &pt );
 	RegSetValueEx( hkey, L"XPos",    0, REG_DWORD, (BYTE*)&pt.left, sizeof(pt.left) );
 	RegSetValueEx( hkey, L"YPos",    0, REG_DWORD, (BYTE*)&pt.top, sizeof(pt.top) );
@@ -273,34 +305,24 @@ void SaveToRegistory()
 	RegSetValueEx( hkey, L"DisplayAMPM", 0, REG_DWORD, (BYTE*)&g_config.is12_24, sizeof(g_config.is12_24) );
 	RegSetValueEx( hkey, L"SpeakType", 0, REG_DWORD, (BYTE*)&g_config.speak_type, sizeof(g_config.speak_type) );
 	RegSetValueEx( hkey, L"NicoNotifySound", 0, REG_SZ, (BYTE*)g_config.nico_notify_sound.c_str(), sizeof(WCHAR)*(g_config.nico_notify_sound.length()+1) );
+
+	if( g_miku.nico_listbc ){
+		HWND h = g_miku.nico_listbc->getWindowHandle();
+		if( !IsIconic(h) ){
+			GetWindowRect( h, &pt );
+			RegSetValueEx( hkey, L"NicoListX", 0, REG_DWORD, (BYTE*)&pt.left, sizeof(pt.left) );
+			RegSetValueEx( hkey, L"NicoListY", 0, REG_DWORD, (BYTE*)&pt.top, sizeof(pt.top) );
+			DWORD tmp;
+			tmp = pt.right - pt.left;
+			RegSetValueEx( hkey, L"NicoListW", 0, REG_DWORD, (BYTE*)&tmp, sizeof(tmp) );
+			tmp = pt.bottom - pt.top;
+			RegSetValueEx( hkey, L"NicoListH", 0, REG_DWORD, (BYTE*)&tmp, sizeof(tmp) );
+		}
+	}
+
 	RegCloseKey( hkey );
 }
 
-/// レジストリの読み込み.
-LSTATUS ReadRegistoryDW( HKEY hkey, WCHAR*entry, DWORD*data )
-{
-	DWORD type, size;
-	type = REG_DWORD;
-	size = sizeof(DWORD);
-	return RegQueryValueEx( hkey, entry, 0, &type, (BYTE*)data, &size );
-}
-
-LSTATUS ReadRegistorySTR( HKEY hkey, WCHAR*entry, std::wstring &str )
-{
-	LSTATUS r;
-	DWORD type, size;
-
-	type = REG_SZ;
-	RegQueryValueEx( hkey, entry, 0, &type, NULL, &size );
-	if( size==0 ) return !ERROR_SUCCESS;
-
-	// sizeは単位バイトだけどそのまま使用してもサイズ的に困らないし.
-	WCHAR *buf = new WCHAR[ size ];
-	r = RegQueryValueEx( hkey, entry, 0, &type, (BYTE*)buf, &size );
-	str = buf;
-	delete [] buf;
-	return r;
-}
 
 /** レジストリから設定項目を全てロードする.
  */
@@ -367,6 +389,24 @@ void LoadFromRegistory()
 		g_config.nico_notify_sound = L"nc11846.mp3";
 	}
 
+	err = ReadRegistoryDW( hkey, L"NicoListX", &g_config.nico_listwin_x);
+	if( err!=ERROR_SUCCESS ){
+		g_config.nico_listwin_x = 0;
+	}
+	err = ReadRegistoryDW( hkey, L"NicoListY", &g_config.nico_listwin_y );
+	if( err!=ERROR_SUCCESS ){
+		g_config.nico_listwin_y = 0;
+	}
+	err = ReadRegistoryDW( hkey, L"NicoListW", &g_config.nico_listwin_w );
+	if( err!=ERROR_SUCCESS ){
+		g_config.nico_listwin_w = 640;
+	}
+	err = ReadRegistoryDW( hkey, L"NicoListH", &g_config.nico_listwin_h );
+	if( err!=ERROR_SUCCESS ){
+		g_config.nico_listwin_h = 480;
+	}
+
+
 	RegCloseKey( hkey );
 
     if( g_config.trans_rate < 10 ) g_config.trans_rate = 10;
@@ -412,6 +452,8 @@ void DrawMiku(HDC hdc)
  */
 void FindITunes( HWND hwnd )
 {
+	if( g_miku.noiTunes ) return;
+
 	if( g_miku.iTunes==NULL && FindITunes() ){
         // 終了中のiTunesを見つけないようにテキトーな手段で弾く.
 		if( GetTickCount() - g_miku.iTunesEndTime < 10*1000 ) return;
@@ -591,8 +633,8 @@ LRESULT ShowPopupMenu(HWND hwnd)
     InsertMenuItem( submenu, MENU_TRACKLIST_INSERT_POSITION, TRUE, &iteminfo );
 
 	// 最近のニコ生放送リストを追加.
-	if( g_miku.nico ){
-		recentniconama = g_miku.nico->getRecentList();
+	if( g_miku.nico_alert ){
+		recentniconama = g_miku.nico_alert->getRecentList();
 
 		hRecentBroadcasting = CreatePopupMenu();
 		std::list<NicoNamaProgram>::iterator it;
@@ -818,8 +860,12 @@ LRESULT OnNicoNamaNotify( HWND hwnd, WPARAM wparam, LPARAM lparam )
 		CreateNicoNamaNotify( (NicoNamaProgram*)lparam );
 		break;
 	case NNA_CLOSED_NOTIFYWINDOW:
-		if( g_miku.nico ) g_miku.nico->ShowNextNotifyWindow();
+		if( g_miku.nico_alert ) g_miku.nico_alert->ShowNextNotifyWindow();
 		break;
+	case NNA_UPDATE_RSS:
+		g_miku.nico_listbc->SetBoadcastingList( (std::map<std::string,NicoNamaRSSProgram>*)lparam );
+		break;
+
 	default:
 		break;
 	}
@@ -1150,35 +1196,35 @@ void NicoNamaLogin( HWND hWnd )
 	std::string userid, userpassword;
 
 	// SHIFTキー押しながらだと、ログインダイアログを出す.
-	if( (g_miku.nico==NULL && !g_config.nico_autologin) ||
+	if( (g_miku.nico_alert==NULL && !g_config.nico_autologin) ||
 		(g_config.nico_id.length()==0 || g_config.nico_password.length()==0) ||
 		(GetKeyState(VK_SHIFT)&0x8000) ){
 		INT_PTR dlgret;
 		dlgret = DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_NICO_IDPASS), hWnd, DlgNicoIDPASSProc );
 		if( dlgret==IDCANCEL ) return;
-		SAFE_DELETE( g_miku.nico );
+		SAFE_DELETE( g_miku.nico_alert );
 	}
 
-	if( g_miku.nico ){
+	if( g_miku.nico_alert ){
 		std::wstring text = GetStringFromResource(IDS_ERR_ALREADY_CONNECTED);
 		std::wstring cap  = GetStringFromResource(IDS_ERR_CAPTION);
 		MessageBox( hWnd, text.c_str(), cap.c_str(), MB_OK|MB_ICONEXCLAMATION );
 		return;
 	}
 
-	g_miku.nico = new NicoNamaAlert( g_miku.hInst, g_miku.pWindow->getWindowHandle() );
-	g_miku.nico->setDisplayType( NicoNamaAlert::NNA_WINDOW );
+	g_miku.nico_alert = new NicoNamaAlert( g_miku.hInst, g_miku.pWindow->getWindowHandle() );
+	g_miku.nico_alert->setDisplayType( NicoNamaAlert::NNA_WINDOW );
 	if( g_miku.cmdline.find(L"/balloon")!=std::wstring::npos ){
-		g_miku.nico->setDisplayType( NicoNamaAlert::NNA_BALLOON );
+		g_miku.nico_alert->setDisplayType( NicoNamaAlert::NNA_BALLOON );
 	}
 
 	wstrtostr( g_config.nico_id, userid );
 	wstrtostr( g_config.nico_password, userpassword );
 	rot47( userpassword );	// 復号化.
-	int r = g_miku.nico->Auth( userid.c_str(), userpassword.c_str() );
+	int r = g_miku.nico_alert->Auth( userid.c_str(), userpassword.c_str() );
 	if( r<0 ){
 		dprintf( L"Failed NicoAuth\n" );
-		SAFE_DELETE( g_miku.nico );
+		SAFE_DELETE( g_miku.nico_alert );
 		g_config.nico_autologin = 0;
 
 		std::wstring text	 = GetStringFromResource(IDS_ERR_AUTH_FAILED);
@@ -1187,18 +1233,19 @@ void NicoNamaLogin( HWND hWnd )
 		return;
 	}
 
-	if( g_miku.nico->connectCommentServer()==0 ){
+	if( g_miku.nico_alert->connectCommentServer()==0 ){
 		if( g_miku.cmdline.find( L"/randompickup", 0 )!=std::wstring::npos ){
 			dprintf( L"Random Pickup Mode\n" );
-			g_miku.nico->setRandomPickup( true );
+			g_miku.nico_alert->setRandomPickup( true );
 		}else{
 			dprintf( L"Standard Pickup Mode\n" );
-			g_miku.nico->setRandomPickup( false );
+			g_miku.nico_alert->setRandomPickup( false );
 		}
 		dprintf( L"Logged in to Niconama.\n" );
-		g_miku.nico->startThread();
+		g_miku.nico_alert->startThread();
+		SetTaskTrayBalloonMessage( GetStringFromResource(IDS_NICO_CONNECTED) );
 	}else{
-		SAFE_DELETE( g_miku.nico );
+		SAFE_DELETE( g_miku.nico_alert );
 
 		std::wstring text = GetStringFromResource(IDS_ERR_CONNECT_FAILED);
 		std::wstring cap  = GetStringFromResource(IDS_ERR_CONNECT_FAILED_CAPTION);
@@ -1208,6 +1255,7 @@ void NicoNamaLogin( HWND hWnd )
 
 LRESULT OnContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 {
+	// WM_COMMANDはコンテキストメニューにしか使ってない.
     WORD id = LOWORD(wParam);
 	WORD notifycode = HIWORD(wParam);
 
@@ -1234,6 +1282,10 @@ LRESULT OnContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 
 	case ID_BTN_NOCOLOGIN:
 		NicoNamaLogin( hWnd );
+		break;
+
+	case ID_BTN_BROADCASTING_LIST:
+		if( g_miku.nico_listbc ) g_miku.nico_listbc->Show();
 		break;
 
 	default:
@@ -1396,7 +1448,7 @@ LRESULT OnTimer( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		KillTimer( hWnd, TIMER_ID_REFRESH_TIPHELP );
 		break;
 	case TIMER_ID_NICO_KEEPALIVE:
-		if( g_miku.nico ) g_miku.nico->keepalive();
+		if( g_miku.nico_alert ) g_miku.nico_alert->keepalive();
 		break;
 
 	case TIMER_ID_3MIN:
@@ -1410,6 +1462,12 @@ LRESULT OnTimer( HWND hWnd, WPARAM wParam, LPARAM lParam )
 			dprintf( L"PlaySound failed\n" );
 		}
 		KillTimer( hWnd, TIMER_ID_3MIN );
+		break;
+
+	case TIMER_ID_RSS_UPDATE:
+		if( g_miku.nico_alert ){
+			g_miku.nico_alert->getAllRSSAndUpdate();
+		}
 		break;
 	}
 	return 0;
@@ -1513,20 +1571,52 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
     return DefWindowProc( hWnd, message, wParam, lParam );
 }
 
-//test
-unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v);
+
+#include "myregexp.h"
+void testpcre()
+{
+	int b;
+	pcre_config( PCRE_CONFIG_UTF8, &b );
+	if( b ){ dprintf(L"pcre support utf-8\n"); } else { dprintf(L"pcre do not support utf-8\n"); }
+
+	std::string utf8_pattern;
+	std::wstring wstr = L"(初音|ミク)";
+	std::wstring wstr2;
+	wstrtostr( wstr, utf8_pattern );
+	strtowstr( utf8_pattern, wstr2 );
+
+	myPCRE re( utf8_pattern.c_str(), PCRE_UTF8|PCRE_MULTILINE );
+
+	std::wstring str[6] = {
+		L"初音ミク",
+		L"初音",
+		L"ミク",
+		L"初 音 ミ ク",
+		L"部分一致初音ミク部分一致",
+		L"なし",
+	};
+
+	for(int i=0;i<6;i++){
+		std::string utf8;
+		wstrtostr( str[i], utf8 );
+		if( re.match( utf8.c_str() ) ){
+			dprintf( L"%s\n", str[i].c_str() );
+		}
+	}
+
+}
 
 
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
-    InitMikuClock();
-    LoadMikuImage();
-    UpdateMikuClock();
+	testpcre();
 
-	//NicoNamaAlert nicotmp(0,0);
-	//thNicoNamaRetriveAllRSS( &nicotmp );
-
+	InitMikuClock();
 	g_miku.cmdline = lpCmdLine;
+	CheckCommandLineOption();
+
+	LoadMikuImage();
+    UpdateMikuClock();
 
     g_miku.hInst = hInstance;
     g_miku.pWindow = new tWindow( APP_TITLE, 100, 100, 256, 256, WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX, WndProc, hInstance );
@@ -1539,14 +1629,15 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
     g_miku.pWindow->setTopMost( g_config.isTopMost );
     g_miku.pWindow->show();
 
+	g_miku.nico_listbc = new tListWindow( hInstance, g_miku.pWindow->getWindowHandle() );
+	MoveWindow( g_miku.nico_listbc->getWindowHandle(), g_config.nico_listwin_x, g_config.nico_listwin_y, g_config.nico_listwin_w, g_config.nico_listwin_h, TRUE );
+	//g_miku.nico_listbc->Show();
+
 	RegisterTaskTrayIcon();
 
 	if( g_config.nico_autologin ){
 		NicoNamaLogin( g_miku.pWindow->getWindowHandle() );
 	}
-
-	//tPlaySound( L"d:\\sound\\nc1277.wav" );
-	//tPlaySound( L"d:\\sound\\nc11846.mp3" );
 
 	// Main message loop
     MSG msg = {0};
@@ -1564,7 +1655,8 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 
 	UnregisterTaskTrayIcon();
 
-	SAFE_DELETE( g_miku.nico );
+	SAFE_DELETE( g_miku.nico_listbc );
+	SAFE_DELETE( g_miku.nico_alert );
     SAFE_DELETE( g_miku.pWindow );
 
     ExitMikuClock();

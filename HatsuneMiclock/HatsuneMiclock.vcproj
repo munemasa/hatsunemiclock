@@ -44,8 +44,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;DEBUG"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;;&quot;D:\sources\pcre-7.9-src&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;DEBUG;PCRE_STATIC"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -66,7 +66,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylibd.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;;&quot;D:\sources\pcre-7.9-src\lib\x86&quot;"
 				IgnoreDefaultLibraryNames="libcmt.lib"
 				DelayLoadDLLs="gdiplus.dll"
 				GenerateDebugInformation="true"
@@ -121,8 +121,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;"
-				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;DEBUG"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;;&quot;D:\sources\pcre-7.9-src&quot;"
+				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;DEBUG;PCRE_STATIC"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -143,7 +143,7 @@
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylibd.lib"
 				LinkIncremental="2"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;;&quot;D:\sources\pcre-7.9-src\lib\x64&quot;"
 				IgnoreDefaultLibraryNames="libcmt.lib"
 				DelayLoadDLLs=""
 				GenerateDebugInformation="true"
@@ -199,8 +199,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;;&quot;D:\sources\pcre-7.9-src&quot;"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;PCRE_STATIC"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -219,9 +219,9 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.5\$(ProjectName).exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.6\$(ProjectName).exe"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;;&quot;D:\sources\pcre-7.9-src\lib\x86&quot;"
 				IgnoreDefaultLibraryNames="msvcrt.lib"
 				DelayLoadDLLs="gdiplus.dll"
 				GenerateDebugInformation="true"
@@ -280,8 +280,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS"
+				AdditionalIncludeDirectories="D:\sources\itunescomwindowssdk\iTunesCOMWindowsSDK;D:\sources\mylib\include;&quot;D:\sources\libxml2-2.7.3\include&quot;;&quot;D:\sources\pcre-7.9-src&quot;"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;PCRE_STATIC"
 				RuntimeLibrary="0"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -300,9 +300,9 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.5\$(ProjectName)64.exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.6\$(ProjectName)64.exe"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;"
+				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;;&quot;D:\sources\pcre-7.9-src\lib\x64&quot;"
 				IgnoreDefaultLibraryNames="msvcrt.lib"
 				DelayLoadDLLs="gdiplus.dll"
 				GenerateDebugInformation="true"
@@ -347,7 +347,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\misc.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\niconamaalert.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tListWindow.cpp"
 				>
 			</File>
 			<File
@@ -381,11 +389,23 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\misc.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\myregexp.h"
+				>
+			</File>
+			<File
 				RelativePath=".\src\niconamaalert.h"
 				>
 			</File>
 			<File
 				RelativePath=".\resource.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tListWindow.h"
 				>
 			</File>
 			<File

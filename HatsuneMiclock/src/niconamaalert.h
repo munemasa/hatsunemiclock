@@ -3,6 +3,7 @@
 
 #include "winheader.h"
 #include "tNetwork.h"
+#include "misc.h"
 
 #include "libxml/tree.h"
 #include "libxml/parser.h"
@@ -13,12 +14,13 @@
 #include <list>
 #include <map>
 
-
 #define	NICO_COMMUNITY_URL	L"http://ch.nicovideo.jp/community/"
 #define NICO_CHANNEL_URL	L"http://ch.nicovideo.jp/channel/"
 #define NICO_LIVE_URL		L"http://live.nicovideo.jp/watch/"
 
 #define NICO_MAX_RECENT_PROGRAM		(10)		// アラート履歴の最大数(RandomPickupは対象外).
+
+#define NICONAMA_RSS_GET_INTERVAL		(10)		// minutes.
 
 //----------------------------------------------------------------------
 // prototype
@@ -155,7 +157,9 @@ public:
 	inline void setDisplayType( int t ){ m_displaytype = t; }
 	inline void setRandomPickup( bool b ){ m_randompickup = b; }
 	inline bool isRandomPickup() const { return m_randompickup; }
+
 	inline std::list<NicoNamaProgram>& getRecentList(){ return m_recent_program; }
+	std::map<std::string,NicoNamaRSSProgram>* getRSSProgram(){ return &m_rss_program; }
 
 	int Auth( const char*mail, const char*password );
 	int connectCommentServer();
@@ -171,6 +175,7 @@ public:
 
 	HANDLE startThread();
 
+	int getAllRSSAndUpdate();
 	int getAllRSS();
 	int notifyFromRSS();
 };

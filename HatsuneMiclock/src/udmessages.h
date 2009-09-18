@@ -14,6 +14,8 @@ enum {
 // WM_NNA_NOTIFY用のコマンド.
 #define NNA_REQUEST_CREATEWINDOW	(1)
 #define NNA_CLOSED_NOTIFYWINDOW		(2)		// 通知ウィンドウが0個になったときに親ウィンドウに通知される.
+#define NNA_UPDATE_RSS				(3)		// RSSが更新されたときに通知される.
+
 
 // WM_TIMERのID
 enum {
@@ -21,6 +23,7 @@ enum {
 	TIMER_ID_REFRESH_TIPHELP,
 	TIMER_ID_NICO_KEEPALIVE,
 	TIMER_ID_3MIN,
+	TIMER_ID_RSS_UPDATE,
 };
 
 

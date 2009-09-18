@@ -13,8 +13,8 @@
 #define IDR_HOUR05                      107
 #define IDD_NICO_IDPASS                 107
 #define IDR_HOUR06                      108
-#define IDD_PROPPAGE_LARGE              108
 #define IDR_HOUR07                      109
+#define IDD_SEARCH_DIALOG               109
 #define IDR_HOUR08                      110
 #define IDR_HOUR09                      111
 #define IDR_HOUR10                      112
@@ -103,13 +103,16 @@
 #define IDS_ERR_ALREADY_CONNECTED       195
 #define IDS_ERR_AUTH_FAILED             196
 #define IDS_ERR_AUTH_FAILED_CAPTION     197
-#define IDR_WAVE1                       197
 #define IDR_3MIN_PROGRESS               197
 #define IDS_ERR_CAPTION                 198
+#define IDR_LISTWINDOWMENU              198
 #define IDS_ERR_CONNECT_FAILED          199
+#define IDR_LISTWINDOW_CONTEXTMENU      199
 #define IDS_ERR_CONNECT_FAILED_CAPTION  200
 #define IDS_MENU_TRACKLIST              201
 #define IDS_MENU_NICO_RECENT            202
+#define IDS_NICO_CONNECTED              203
+#define IDS_NICO_PROGRAM_LIST_CAPTION   204
 #define IDC_CHK_TOPMOST                 1006
 #define IDC_GRP_DISPLAY                 1007
 #define IDC_CHK_AMPM                    1008
@@ -126,35 +129,26 @@
 #define IDC_SOUNDFILE                   1035
 #define IDC_BTN_SELECT_SNDFILE          1036
 #define IDC_CHK_NICOIDPASS_SAVE         1041
-#define ID_MAIN_40001                   40001
-#define ID_40002                        40002
-#define ID_40003                        40003
-#define ID_40004                        40004
-#define ID_40005                        40005
-#define ID_40006                        40006
-#define ID_40007                        40007
-#define ID_0_40008                      40008
+#define IDC_EDIT_SEARCHSTRING           1044
+#define IDC_BTN_SEARCH                  1045
 #define ID_BTN_WHATTIMEISITNOW          40009
 #define ID_BTN_ABOUT                    40010
 #define ID_BTN_SETTING                  40011
 #define ID_BTN_QUIT                     40012
-#define ID_0_40015                      40015
-#define ID_BTN_TRACKLIST                40016
-#define ID_0_TEST                       40071
-#define ID_TEST_TEST1                   40072
-#define ID_TEST_TEST2                   40073
-#define ID_Menu                         40074
 #define ID_BTN_NOCOLOGIN                40075
-#define ID_0_4                          40076
 #define ID_BTN_3MIN                     40077
+#define ID_BTN_BROADCASTING_LIST        40080
+#define ID_MENU_BTN_SEARCH              40084
+#define ID_BTN_GO_BORADCASTING          40087
+#define ID_BTN_GO_COMMUNITY             40088
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        198
-#define _APS_NEXT_COMMAND_VALUE         40078
-#define _APS_NEXT_CONTROL_VALUE         1042
+#define _APS_NEXT_RESOURCE_VALUE        200
+#define _APS_NEXT_COMMAND_VALUE         40089
+#define _APS_NEXT_CONTROL_VALUE         1047
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

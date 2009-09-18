@@ -1,0 +1,3 @@
+boost 1.40.0
+libxml2 2.7.3
+PCRE 7.9

@@ -1,17 +1,7 @@
 #include "winheader.h"
+#include "misc.h"
 
-
-class criticalsection {
-	CRITICAL_SECTION crit;
-
-public:
-	criticalsection(){ InitializeCriticalSection( &crit ); }
-	~criticalsection(){ DeleteCriticalSection( &crit ); }
-	void enter(){ EnterCriticalSection( &crit ); }
-	void leave(){ LeaveCriticalSection( &crit ); }
-};
-
-static criticalsection crit;
+static tCriticalSection crit;
 
 int dprintf(WCHAR*format,...)
 {
