@@ -219,10 +219,10 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.6\$(ProjectName).exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.7\$(ProjectName).exe"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;;&quot;D:\sources\pcre-7.9-src\lib\x86&quot;"
-				IgnoreDefaultLibraryNames="msvcrt.lib"
+				IgnoreDefaultLibraryNames=""
 				DelayLoadDLLs="gdiplus.dll"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -300,10 +300,10 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.6\$(ProjectName)64.exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.7\$(ProjectName)64.exe"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;;&quot;D:\sources\pcre-7.9-src\lib\x64&quot;"
-				IgnoreDefaultLibraryNames="msvcrt.lib"
+				IgnoreDefaultLibraryNames=""
 				DelayLoadDLLs="gdiplus.dll"
 				GenerateDebugInformation="true"
 				SubSystem="2"
@@ -386,6 +386,10 @@
 			>
 			<File
 				RelativePath=".\src\debug.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\define.h"
 				>
 			</File>
 			<File

@@ -11,7 +11,7 @@ class tXML {
 	xmlNodePtr		m_root;
 
 public:
-	tXML( const char*xml, int len );
+	tXML( const char*xml, int len, bool html=false );
 	~tXML();
 
 	static xmlNode* FindFirstNode( xmlNode*node, const char*nodename );

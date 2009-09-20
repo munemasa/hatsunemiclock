@@ -22,6 +22,38 @@ static WNDPROC	g_oldlistviewwndproc;
 static std::string g_old_filter = "dummy";
 static std::string g_utf8_filteringpattern = "";
 
+
+static void SaveKeyword( std::wstring& wstr )
+{
+	HKEY hkey;
+	RegCreateKeyEx( HKEY_CURRENT_USER, REG_SUBKEY, 0, L"", REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hkey, NULL );
+	RegSetValueEx( hkey, L"NicoMatchKeyword", 0, REG_SZ, (BYTE*)wstr.c_str(), sizeof(WCHAR)*(wstr.length()+1) );
+	RegCloseKey( hkey );
+}
+
+static void SaveFilteringKeyword()
+{
+	HKEY hkey;
+	std::wstring wstr;
+	strtowstr( g_utf8_filteringpattern, wstr );
+	RegCreateKeyEx( HKEY_CURRENT_USER, REG_SUBKEY, 0, L"", REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hkey, NULL );
+	RegSetValueEx( hkey, L"NicoFilterKeyword", 0, REG_SZ, (BYTE*)wstr.c_str(), sizeof(WCHAR)*(wstr.length()+1) );
+	RegCloseKey( hkey );
+}
+static void LoadFilteringKeyword( )
+{
+	HKEY hkey;
+	LONG err;
+	std::wstring wstr;
+	RegCreateKeyEx( HKEY_CURRENT_USER, REG_SUBKEY, 0, L"", REG_OPTION_NON_VOLATILE, KEY_READ, NULL,	&hkey, NULL );
+	err = ReadRegistorySTR( hkey, L"NicoFilterKeyword", wstr );
+	if( err!=ERROR_SUCCESS ){
+		wstr = L"";
+	}
+	wstrtostr( wstr, g_utf8_filteringpattern );
+	RegCloseKey( hkey );
+}
+
 static INT_PTR CALLBACK DlgFilterProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch(msg){
@@ -33,11 +65,12 @@ static INT_PTR CALLBACK DlgFilterProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM 
 
     case WM_COMMAND:
         switch(LOWORD(wp)){
-        case IDCANCEL:
+        case ID_BTN_FILTERRELEASE:
 			// フィルタ解除.
 			g_old_filter = "dummy";
 			g_utf8_filteringpattern = "";
-            EndDialog( hDlgWnd, IDCANCEL );
+			SaveFilteringKeyword();
+            EndDialog( hDlgWnd, ID_BTN_FILTERRELEASE );
             break;
 
 		case IDC_BTN_SEARCH:{
@@ -46,7 +79,67 @@ static INT_PTR CALLBACK DlgFilterProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM 
 			GetDlgItemText( hDlgWnd, IDC_EDIT_SEARCHSTRING, buf, 8192 );
 			std::wstring wbuf = buf;
 			wstrtostr( wbuf, g_utf8_filteringpattern );
+			SaveFilteringKeyword();
 			EndDialog( hDlgWnd, IDC_BTN_SEARCH );
+			break;}
+
+		case IDCANCEL:
+			EndDialog( hDlgWnd, IDCANCEL );
+			break;
+
+		default:
+            return FALSE;
+        }
+        break;
+    case WM_CLOSE:
+        PostMessage( hDlgWnd, WM_COMMAND, IDCANCEL, 0 );
+        return TRUE;
+
+    default:
+        return FALSE;
+    }
+    return TRUE;
+}
+
+
+static INT_PTR CALLBACK DlgInputKeywordProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	HWND h;
+	HWND parent;
+	tListWindow*listwin;
+	NicoNamaAlert*nico;
+
+	parent = GetWindow( hDlgWnd, GW_OWNER );
+	listwin = (tListWindow*)GetWindowLongPtr( parent, GWLP_USERDATA );
+	nico = listwin->getNicoNamaAlert();
+
+	switch(msg){
+	case WM_INITDIALOG:
+		if( nico ){
+			std::string& str = nico->getMatchKeyword();
+			std::wstring wstr;
+			strtowstr( str, wstr );
+			SetDlgItemText( hDlgWnd, IDC_EDIT_NOTICE_KEYWORD, wstr.c_str() );
+		}else{
+			SetDlgItemText( hDlgWnd, IDC_EDIT_NOTICE_KEYWORD, L"" );
+		}
+		return TRUE;
+
+    case WM_COMMAND:
+        switch(LOWORD(wp)){
+		case IDCANCEL:
+			EndDialog( hDlgWnd, IDCANCEL );
+			break;
+
+		case IDOK:{
+			WCHAR buf[8192];
+			GetDlgItemText( hDlgWnd, IDC_EDIT_NOTICE_KEYWORD, buf, 8192 );
+			std::wstring wstr = buf;
+			std::string str;
+			wstrtostr( wstr, str );
+			if( nico ) nico->setMatchKeyword( str );
+			SaveKeyword( wstr );
+			EndDialog( hDlgWnd, IDOK );
 			break;}
 
 		default:
@@ -63,18 +156,131 @@ static INT_PTR CALLBACK DlgFilterProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM 
     return TRUE;
 }
 
-static LRESULT CALLBACK CCLIstViewSubProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
+static void SaveNoticeType( HWND hDlgWnd )
 {
-	switch( message ){
-	case WM_KEYDOWN:
-		PostMessage( GetParent( hWnd ), message, wParam, lParam );
-		return 0;
-		break;
+	HWND h;
+	HWND parent;
+	tListWindow*listwin;
+	NicoNamaAlert*nico;
+	int num;
 
-	default:
-		break;
+	h = GetDlgItem( hDlgWnd, IDC_COMMUNITY_LIST );
+	parent = GetWindow( hDlgWnd, GW_OWNER );
+	listwin = (tListWindow*)GetWindowLongPtr( parent, GWLP_USERDATA );
+	nico = listwin->getNicoNamaAlert();
+	if( !nico ) return;
+
+	num = ListView_GetItemCount( h );
+	for(int i=0; i<num; i++){
+		NicoNamaNoticeType alert;
+		std::string co;
+		WCHAR wbuf[1024];
+		ListView_GetItemText( h, i, 0, wbuf, 1024 );
+		std::wstring wstr = wbuf;
+		wstrtostr( wstr, co );
+
+		alert = nico->getNoticeType( co );
+
+		DWORD tmp = alert.type;
+		tmp &= ~(NICO_NOTICETYPE_SOUND|NICO_NOTICETYPE_BROWSER);
+
+		if( ListView_GetCheckState( h, i )!=0 ) {
+			alert.type = tmp | NICO_NOTICETYPE_SOUND | NICO_NOTICETYPE_BROWSER;
+		}else{
+			alert.type = tmp | NICO_NOTICETYPE_SOUND;
+		}
+		nico->setNoticeType( co, alert );
 	}
-	return CallWindowProc( g_oldlistviewwndproc, hWnd, message, wParam, lParam );
+	nico->Save();
+}
+
+
+static INT_PTR CALLBACK DlgCommunityProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	HWND h;
+	HWND parent;
+	tListWindow*listwin;
+	NicoNamaAlert*nico;
+
+	switch(msg){
+	case WM_INITDIALOG:{
+		h = GetDlgItem( hDlgWnd, IDC_COMMUNITY_LIST );
+		ListView_SetExtendedListViewStyle( h, LVS_SINGLESEL );
+		ListView_SetExtendedListViewStyle( h, LVS_EX_FULLROWSELECT|LVS_EX_FLATSB|LVS_EX_DOUBLEBUFFER|LVS_EX_INFOTIP|LVS_EX_CHECKBOXES );
+
+		LV_COLUMN column;
+		ZeroMemory( &column, sizeof(column) );
+		column.mask		= LVCF_FMT|LVCF_TEXT|LVCF_SUBITEM|LVCF_WIDTH;
+		column.fmt		= LVCFMT_LEFT;
+		column.pszText	= L"コミュニティID";
+		column.iSubItem = 0;
+		column.cx       = 100;
+		ListView_InsertColumn( h, 0, &column );
+
+		column.mask		= LVCF_FMT|LVCF_TEXT|LVCF_SUBITEM|LVCF_WIDTH;
+		column.fmt		= LVCFMT_LEFT;
+		column.pszText	= L"コミュニティ名";
+		column.iSubItem = 1;
+		column.cx       = 220;
+		ListView_InsertColumn( h, 1, &column );
+
+		parent = GetWindow( hDlgWnd, GW_OWNER );
+		listwin = (tListWindow*)GetWindowLongPtr( parent, GWLP_USERDATA );
+		nico = listwin->getNicoNamaAlert();
+		if( nico ){
+			std::vector< std::wstring >& commu = nico->getCommunities();
+			std::vector< std::wstring >::iterator it;
+			int i=0;
+			for(it=commu.begin(); it!=commu.end(); it++,i++){
+				LV_ITEM item;
+				ZeroMemory( &item, sizeof(item) );
+				// タイトル.
+				item.mask		= LVIF_TEXT;
+				item.iItem		= i;
+				item.pszText	= (LPWSTR)(*it).c_str();
+				item.iSubItem	= 0;
+				ListView_InsertItem(h , &item );
+
+				std::wstring communityname = nico->getCommunityName( (*it) );
+				item.pszText	= (LPWSTR)communityname.c_str();
+				item.iSubItem	= 1;
+				ListView_SetItem( h, &item );
+
+				std::string mbstr;
+				wstrtostr( (*it), mbstr );
+				NicoNamaNoticeType &t = nico->getNoticeType( mbstr );
+				if( t.type & NICO_NOTICETYPE_BROWSER ){
+					ListView_SetCheckState( h, i, TRUE );
+				}else{
+					ListView_SetCheckState( h, i, FALSE );
+				}
+			}
+		}
+		return TRUE;}
+
+    case WM_COMMAND:
+        switch(LOWORD(wp)){
+		case IDCANCEL:
+			EndDialog( hDlgWnd, IDCANCEL );
+			break;
+
+		case IDOK:
+			SaveNoticeType( hDlgWnd );
+			EndDialog( hDlgWnd, IDOK );
+			break;
+
+		default:
+            return FALSE;
+        }
+        break;
+    case WM_CLOSE:
+        PostMessage( hDlgWnd, WM_COMMAND, IDCANCEL, 0 );
+        return TRUE;
+
+    default:
+        return FALSE;
+    }
+    return TRUE;
 }
 
 
@@ -87,10 +293,19 @@ static LRESULT OnMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 	int col;
 
 	switch( id ){
-    case ID_MENU_BTN_SEARCH:
-		dlgret = DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_SEARCH_DIALOG), hWnd, DlgFilterProc );
+    case ID_MENU_BTN_FILTER:
+		dlgret = DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_FILTER_DIALOG), hWnd, DlgFilterProc );
+		if( dlgret==IDCANCEL ) break;
 		// フィルタリング.
 		listwin->SetFilter( g_utf8_filteringpattern );
+		break;
+
+	case ID_MENU_BTN_COMMUNITY:
+		dlgret = DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_COMMUNITY_LIST), hWnd, DlgCommunityProc );
+		break;
+
+	case ID_MENU_BTN_NOTICE:
+		dlgret = DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_INPUT_KEYWORD), hWnd, DlgInputKeywordProc );
 		break;
 
 	case ID_BTN_GO_BORADCASTING:
@@ -117,8 +332,6 @@ static LRESULT OnNotify( HWND hWnd, WPARAM wParam, LPARAM lParam )
 	switch( pnmh->code ){
 	case NM_RCLICK:{
 		LPNMITEMACTIVATE itemact = (LPNMITEMACTIVATE)lParam;
-		dprintf( L"%d\n", itemact->iItem );
-
 		tListWindow*listwin = (tListWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
 		listwin->ShowContextMenu( itemact->iItem );
 		break;}
@@ -202,6 +415,9 @@ void tListWindow::InitColumn()
 
 tListWindow::tListWindow( HINSTANCE hinst, HWND parent )
 {
+	LoadFilteringKeyword();
+
+	m_nico = NULL;
 	m_searchdialog = NULL;
 
 	WNDCLASSEX wc;
@@ -235,21 +451,18 @@ tListWindow::tListWindow( HINSTANCE hinst, HWND parent )
 
 	m_listview = myCreateWindowEx( 0, WC_LISTVIEW, L"", WS_CHILD|WS_VISIBLE|LVS_REPORT|LVS_SINGLESEL|LVS_SHOWSELALWAYS, 0,0,w,h, m_hwnd, FALSE );
 	g_oldlistviewwndproc = (WNDPROC)GetWindowLong( m_listview, GWLP_WNDPROC );
-	LONG l = SetWindowLong( m_listview, GWLP_WNDPROC, (LONG)CCLIstViewSubProc ); 
-	if( l==0 ){
-		DWORD err = GetLastError();
-		dprintf( L"subclassing:%d\n", err );
-	}
 
-	dwExStyle = LVS_EX_FULLROWSELECT|LVS_EX_HEADERDRAGDROP|LVS_EX_FLATSB|LVS_EX_DOUBLEBUFFER;
+	dwExStyle = LVS_EX_FULLROWSELECT|LVS_EX_HEADERDRAGDROP|LVS_EX_FLATSB|LVS_EX_DOUBLEBUFFER|LVS_EX_INFOTIP;
 	ListView_SetExtendedListViewStyle( m_listview, dwExStyle );
 
 	InitColumn();
 
-	NicoNamaRSSProgram prog;
-	std::wstring wbuf = L"現Ver.はニコ生のサーバに接続しないと表示されません。";
-	wstrtostr( wbuf, prog.title );
-	InsertItem( 0, prog );
+	for(int i=0;i<10;i++){
+		NicoNamaRSSProgram prog;
+		std::wstring wbuf = L"現Ver.はニコ生のサーバに接続しないと表示されません。";
+		wstrtostr( wbuf, prog.title );
+		InsertItem( i, prog );
+	}
 
 	SetWindowLongPtr( m_hwnd, GWLP_USERDATA, (LONG_PTR)this );
 }
@@ -308,11 +521,11 @@ void tListWindow::InsertItem( int i, NicoNamaRSSProgram& prog )
 }
 
 // リストビューに項目を設定する.
-void tListWindow::SetBoadcastingList( std::map<std::string,NicoNamaRSSProgram>*rssprog )
+void tListWindow::SetBoadcastingList( std::map<std::string,NicoNamaRSSProgram>& rssprog )
 {
 	m_rssprog.clear();
 	std::map<std::string,NicoNamaRSSProgram>::iterator it;
-	for( it=rssprog->begin(); it!=rssprog->end(); it++ ){
+	for( it=rssprog.begin(); it!=rssprog.end(); it++ ){
 		if( (*it).second.pubDate ){
 			m_rssprog.push_back( (*it).second );
 		}
@@ -416,9 +629,10 @@ void tListWindow::GoPage( int col, int type )
 }
 
 
-void tListWindow::Show()
+void tListWindow::Show( NicoNamaAlert*nico )
 {
-	ShowWindow( m_hwnd, SW_SHOW );
+	m_nico = nico;
+	ShowWindow( m_hwnd, SW_SHOWNORMAL );
 	UpdateWindow( m_hwnd );
 }
 

@@ -14,13 +14,16 @@
 #include <list>
 #include <map>
 
-#define	NICO_COMMUNITY_URL	L"http://ch.nicovideo.jp/community/"
-#define NICO_CHANNEL_URL	L"http://ch.nicovideo.jp/channel/"
-#define NICO_LIVE_URL		L"http://live.nicovideo.jp/watch/"
+#include "define.h"
 
-#define NICO_MAX_RECENT_PROGRAM		(10)		// アラート履歴の最大数(RandomPickupは対象外).
+//----------------------------------------------------------------------
+// macros
+//----------------------------------------------------------------------
+#define NICO_NOTICETYPE_WINDOW		0x00000001		// open window(常時有効)
+#define NICO_NOTICETYPE_SOUND		0x00000002		// play sound(未使用)
+#define NICO_NOTICETYPE_BROWSER		0x00000004		// run browser
+#define NICO_NOTICETYPE_EXEC		0x00000008		// run command
 
-#define NICONAMA_RSS_GET_INTERVAL		(10)		// minutes.
 
 //----------------------------------------------------------------------
 // prototype
@@ -47,6 +50,7 @@ struct NicoNamaProgram {
 
 	time_t			start;		// 番組の開始時刻.
 	bool			playsound;	// サウンド通知を行うか.
+	bool			isparticipant;	// 参加コミュのものかどうか.
 	int				posx;		// 表示位置X.
 	int				posy;		// 表示位置Y.
 
@@ -55,6 +59,7 @@ struct NicoNamaProgram {
 
 	NicoNamaProgram( const NicoNamaProgram &src ){
 		// thumbnail_imageのためのコピーコンストラクタ.
+		this->isparticipant		= src.isparticipant;
 		this->posx				= src.posx;
 		this->posy				= src.posy;
 		this->start				= src.start;
@@ -73,6 +78,7 @@ struct NicoNamaProgram {
 	NicoNamaProgram& operator=( const NicoNamaProgram &src ){
 		// 代入演算のとき.
 		SAFE_DELETE( this->thumbnail_image );
+		this->isparticipant		= src.isparticipant;
 		this->posx				= src.posx;
 		this->posy				= src.posy;
 		this->start				= src.start;
@@ -93,23 +99,35 @@ struct NicoNamaProgram {
 
 // これはRSSで取得できる情報.
 struct NicoNamaRSSProgram {
-	std::string		title;		// 放送タイトル.
-	std::string		link;		// http://live.nicovideo.jp/watch/lvXXXXX
-	std::string		guid;		// lvXXXX
-	time_t			pubDate;
-	std::string		description;
+	std::string		title;			// 放送タイトル.
+	std::string		link;			// http://live.nicovideo.jp/watch/lvXXXXX
+	std::string		guid;			// lvXXXX
+	std::string		description;	// 説明
 	std::string		category;		// 動画紹介・リクエストとか一般(その他)とか.
 	std::string		thumbnail;		// サムネのURL
 	std::string		community_name;	// コミュ名.
 	std::string		community_id;	// coXXXX
+	std::string		owner_name;		// 生主の名前.
 	int				num_res;		// コメ数.
 	int				view;			// 来場者数.
-	std::string		owner_name;		// 生主の名前.
 	bool			member_only;	// メンバーオンリーフラグ.
 	int				type;			// 0:unknown 1:community 2:official 3:あと何があるんだろう.
+	time_t			pubDate;
 
 	NicoNamaRSSProgram(){ pubDate = 0; }
 };
+
+
+// 通知方法.
+struct NicoNamaNoticeType {
+	std::wstring	command;
+	DWORD			type;
+	NicoNamaNoticeType(){
+		command = L"";
+		type = 0;
+	}
+};
+
 
 
 class NicoNamaAlert {
@@ -123,61 +141,91 @@ public:
 private:
 	HINSTANCE		m_hinst;
 	HWND			m_parenthwnd;
-	int				m_displaytype;		// アラートの表示方法.
+	int				m_displaytype;		///< アラートの表示方法.
 
-	std::string		m_ticket;			// 第一認証で取得するチケット.
+	std::string		m_ticket;			///< 第一認証で取得するチケット.
 	std::string		m_userid;
 	std::string		m_userhash;
-	std::vector< std::wstring >	m_communities;	// 参加コミュのID.
+	std::vector<std::wstring>	m_communities;	///< 参加コミュのIDリスト.
 
-	std::string		m_commentserver;	// コメントサーバ.
-	uint16_t		m_port;				// コメントサーバのポート.
-	std::string		m_thread;			// コメントサーバのスレッド.
-	tSocket			m_socket;			// コメントサーバ接続ソケット.
+	std::string		m_commentserver;	///< コメントサーバ.
+	uint16_t		m_port;				///< コメントサーバのポート.
+	std::string		m_thread;			///< コメントサーバのスレッド.
+	tSocket			m_socket;			///< コメントサーバ接続ソケット.
 
-	std::queue<NicoNamaProgram>		m_program_queue;	// 番組の通知キュー.
-	std::list<NicoNamaProgram>		m_recent_program;	// 最近通知した番組.
+	std::list<NicoNamaProgram>		m_program_queue;	///< 通知キュー.
+	std::list<NicoNamaProgram>		m_recent_program;	///< 最近通知した番組.
 	bool	m_randompickup;
 
-	std::map<std::string,NicoNamaRSSProgram>	m_rss_program;
+	// キーはコミュニティID
+	tCriticalSection m_rss_cs;
+	std::map<std::string,NicoNamaRSSProgram>	m_rss_program;	///< RSSにある全番組.
+
+	std::map<std::string,NicoNamaNoticeType>	m_noticetype;	///< コミュごとの通知タイプ指定.
+	std::map<std::string,std::string>			m_community_name_cache;	///< コミュニティ名キャッシュ.
+
+	std::string					m_matchkeyword;		///< キーワード通知用.
+	std::list<std::string>		m_announcedlist;	///< 二重通知しないための通知済み一覧.
 
 	std::string getTicket( const char*xml, int len );
 	int getDataFrom2ndAuth( const char*xml, int len );
 
-	int ShowNicoNamaInfoByBalloon( NicoNamaProgram &program );
-	int ShowNicoNamaInfoByWindow( NicoNamaProgram &program );
-
-	void addRSSProgram( NicoNamaRSSProgram &program );
+	int ShowNicoNamaNoticeByBalloon( NicoNamaProgram &program );
+	int ShowNicoNamaNoticeByWindow( NicoNamaProgram &program );
 
 public:
-	NicoNamaAlert( HINSTANCE hinst, HWND hwnd );
-	~NicoNamaAlert();
+	void setRSSProgram( std::map<std::string,NicoNamaRSSProgram>& src ){
+		m_rss_cs.enter();
+		m_rss_program.clear();
+		for(std::map<std::string,NicoNamaRSSProgram>::iterator i = src.begin(); i != src.end(); ++i){
+		   m_rss_program[i->first] = i->second;
+		}
+		m_rss_cs.leave();
+	}
+	std::map<std::string,NicoNamaRSSProgram>& getRSSProgram(){
+		m_rss_cs.enter();
+		std::map<std::string,NicoNamaRSSProgram>& r = m_rss_program;
+		m_rss_cs.leave();
+		return r;
+	}
+
+	void setNoticeType( std::string& co, NicoNamaNoticeType& type ){ m_noticetype[ co ] = type; }
+	NicoNamaNoticeType& getNoticeType( std::string& co ){ return m_noticetype[ co ]; }
+
+	inline std::string& getMatchKeyword(){ return m_matchkeyword; }
+	inline void setMatchKeyword( std::string& str ){ m_matchkeyword = str; }
 
 	inline HWND getParentHWND() const { return m_parenthwnd; }
-	inline void setDisplayType( int t ){ m_displaytype = t; }
-	inline void setRandomPickup( bool b ){ m_randompickup = b; }
+	inline void SetDisplayType( int t ){ m_displaytype = t; }
+	inline void SetRandomPickup( bool b ){ m_randompickup = b; }
 	inline bool isRandomPickup() const { return m_randompickup; }
+	inline std::vector< std::wstring >& getCommunities(){ return m_communities; }
+	std::wstring getCommunityName( std::wstring& commu_id );
 
 	inline std::list<NicoNamaProgram>& getRecentList(){ return m_recent_program; }
-	std::map<std::string,NicoNamaRSSProgram>* getRSSProgram(){ return &m_rss_program; }
 
 	int Auth( const char*mail, const char*password );
-	int connectCommentServer();
-	int keepalive();
-	int receive( std::wstring &str );
+	int ConnectCommentServer();
+	int KeepAlive();
+	int Receive( std::wstring &str );
 
 	bool isParticipant( std::wstring&communityid );
-	int ShowNicoNamaInfo( NicoNamaProgram &program );
-	void ShowNextNotifyWindow();
-	void addProgramQueue( NicoNamaProgram &program, bool nostack=false );
+	int ShowNicoNamaNotice( NicoNamaProgram &program );
+	void ShowNextNoticeWindow();
+	void AddNoticeQueue( NicoNamaProgram &program, bool nostack=false );
 
-	int addRSSProgram( xmlNodePtr channel );
+	HANDLE StartThread();
 
-	HANDLE startThread();
+	int GetAllRSSAndUpdate();
+	int GetAllRSS();
+	int NotifyNowBroadcasting();
+	int NotifyKeywordMatch();
 
-	int getAllRSSAndUpdate();
-	int getAllRSS();
-	int notifyFromRSS();
+	int Load();
+	int Save();
+
+	NicoNamaAlert( HINSTANCE hinst, HWND hwnd );
+	~NicoNamaAlert();
 };
 
 

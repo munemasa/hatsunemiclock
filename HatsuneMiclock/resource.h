@@ -14,9 +14,11 @@
 #define IDD_NICO_IDPASS                 107
 #define IDR_HOUR06                      108
 #define IDR_HOUR07                      109
-#define IDD_SEARCH_DIALOG               109
+#define IDD_FILTER_DIALOG               109
 #define IDR_HOUR08                      110
+#define IDD_COMMUNITY_LIST              110
 #define IDR_HOUR09                      111
+#define IDD_INPUT_KEYWORD               111
 #define IDR_HOUR10                      112
 #define IDR_HOUR11                      113
 #define IDR_HOUR12                      114
@@ -118,10 +120,8 @@
 #define IDC_CHK_AMPM                    1008
 #define IDC_CHK_TRANSPARENCY            1009
 #define IDC_EDIT_TRANSPARENCY           1011
-#define IDC_SPIN_TRANSPARENCY           1012
 #define IDC_SPEAK_EVERYMIN              1016
 #define IDC_SPEAK_EVERYHOUR             1017
-#define IDC_RADIO3                      1018
 #define IDC_NOSPEAK                     1018
 #define IDC_EDIT_NOCO_EMAIL             1031
 #define IDC_NICO_PASSWORD               1032
@@ -131,6 +131,9 @@
 #define IDC_CHK_NICOIDPASS_SAVE         1041
 #define IDC_EDIT_SEARCHSTRING           1044
 #define IDC_BTN_SEARCH                  1045
+#define ID_BTN_FILTERRELEASE            1047
+#define IDC_COMMUNITY_LIST              1063
+#define IDC_EDIT_NOTICE_KEYWORD         1067
 #define ID_BTN_WHATTIMEISITNOW          40009
 #define ID_BTN_ABOUT                    40010
 #define ID_BTN_SETTING                  40011
@@ -141,14 +144,22 @@
 #define ID_MENU_BTN_SEARCH              40084
 #define ID_BTN_GO_BORADCASTING          40087
 #define ID_BTN_GO_COMMUNITY             40088
+#define ID_40089                        40089
+#define ID_40090                        40090
+#define ID_MENUBTN_                     40091
+#define ID_MENU_BTN_NOTIFY              40092
+#define ID_MENU_BTN_FILTER              40093
+#define ID_40094                        40094
+#define ID_MENU_BTN_COMMUNITY           40095
+#define ID_MENU_BTN_NOTICE              40096
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        200
-#define _APS_NEXT_COMMAND_VALUE         40089
-#define _APS_NEXT_CONTROL_VALUE         1047
+#define _APS_NEXT_COMMAND_VALUE         40097
+#define _APS_NEXT_CONTROL_VALUE         1068
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

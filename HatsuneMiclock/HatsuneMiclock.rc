@@ -172,7 +172,12 @@ END
 
 IDR_LISTWINDOWMENU MENU 
 BEGIN
-    MENUITEM "フィルタ(&F)",                    ID_MENU_BTN_SEARCH
+    MENUITEM "!フィルタ(&F)",                   ID_MENU_BTN_FILTER
+    POPUP "設定(&S)"
+    BEGIN
+        MENUITEM "コミュニティ...(&C)",               ID_MENU_BTN_COMMUNITY
+        MENUITEM "キーワード通知...(&K)",              ID_MENU_BTN_NOTICE
+    END
 END
 
 IDR_LISTWINDOW_CONTEXTMENU MENU 
@@ -197,6 +202,11 @@ BEGIN
     BEGIN
         RIGHTMARGIN, 195
     END
+
+    IDD_COMMUNITY_LIST, DIALOG
+    BEGIN
+        BOTTOMMARGIN, 183
+    END
 END
 #endif    // APSTUDIO_INVOKED
 
@@ -212,7 +222,7 @@ CAPTION "バージョン情報"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
     DEFPUSHBUTTON   "OK",IDYES,82,101,41,20
-    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.6",IDC_STATIC,40,17,127,8
+    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.7",IDC_STATIC,40,17,127,8
     LTEXT           "Programmed by あまの",IDC_STATIC,40,33,65,8
     LTEXT           "「初音ミク」はクリプトン・フューチャー・メディア株式会社の著作物です。\n(C) Crypton Future Media, Inc.",IDC_STATIC,10,62,187,19
 END
@@ -240,7 +250,7 @@ BEGIN
 END
 
 IDD_NICO_IDPASS DIALOGEX 0, 0, 213, 136
-STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "ニコニコ動画のIDとパスワードを入力"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
@@ -254,15 +264,38 @@ BEGIN
     PUSHBUTTON      "キャンセル",IDCANCEL,158,110,41,18
 END
 
-IDD_SEARCH_DIALOG DIALOGEX 0, 0, 243, 72
-STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_FILTER_DIALOG DIALOGEX 0, 0, 243, 72
+STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 CAPTION "番組のフィルタ"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
     EDITTEXT        IDC_EDIT_SEARCHSTRING,11,13,166,20,ES_AUTOHSCROLL
     DEFPUSHBUTTON   "フィルタリング",IDC_BTN_SEARCH,184,13,46,20
-    PUSHBUTTON      "解除",IDCANCEL,184,42,46,20
+    PUSHBUTTON      "解除",ID_BTN_FILTERRELEASE,184,42,46,20
     LTEXT           "※正規表現で入力してください(Perl compatible)",IDC_STATIC,11,40,134,8
+END
+
+IDD_COMMUNITY_LIST DIALOGEX 0, 0, 235, 186
+STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "コミュニティリスト"
+FONT 9, "MS UI Gothic", 400, 0, 0x0
+BEGIN
+    CONTROL         "",IDC_COMMUNITY_LIST,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,6,25,221,132
+    LTEXT           "自動でブラウザを起動する場合、そのコミュにチェックしてください。",IDC_STATIC,6,10,170,8
+    PUSHBUTTON      "OK",IDOK,141,163,41,18
+    PUSHBUTTON      "キャンセル",IDCANCEL,186,163,41,18
+END
+
+IDD_INPUT_KEYWORD DIALOGEX 0, 0, 211, 95
+STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "キーワード通知"
+FONT 9, "MS UI Gothic", 400, 0, 0x0
+BEGIN
+    LTEXT           "入力したキーワードを持つ番組を通知します",IDC_STATIC,10,12,118,8
+    LTEXT           "※正規表現で入力してください(Perl compatible)",IDC_STATIC,10,50,134,8
+    EDITTEXT        IDC_EDIT_NOTICE_KEYWORD,10,25,191,20,ES_AUTOHSCROLL
+    PUSHBUTTON      "OK",IDOK,114,71,41,18
+    PUSHBUTTON      "キャンセル",IDCANCEL,160,71,41,18
 END
 
 
@@ -272,8 +305,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,0,0,6
- PRODUCTVERSION 0,0,0,6
+ FILEVERSION 0,0,0,7
+ PRODUCTVERSION 0,0,0,7
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -290,12 +323,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Miku39.jp"
             VALUE "FileDescription", "初音ミクロック"
-            VALUE "FileVersion", "0, 0, 0, 6"
+            VALUE "FileVersion", "0, 0, 0, 7"
             VALUE "InternalName", "HatsuneMiclock"
             VALUE "LegalCopyright", "Copyright (C) 2009"
             VALUE "OriginalFilename", "HatsuneMiclock.exe"
             VALUE "ProductName", "Hatsune Miclock"
-            VALUE "ProductVersion", "0, 0, 0, 6"
+            VALUE "ProductVersion", "0, 0, 0, 7"
         END
     END
     BLOCK "VarFileInfo"

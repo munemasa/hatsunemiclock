@@ -95,13 +95,7 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 			SetCursor( LoadCursor(NULL, IDC_ARROW) );
 			notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
 			dprintf( L"Thumbnail clicked\n" );
-			HINSTANCE r = ShellExecute(NULL, NULL, notify->GetLiveURL().c_str(), NULL, NULL, SW_SHOWNORMAL);
-			if( (int)r<=32 ){
-				// Ž¸”s‚µ‚½‚Æ‚«‚Íexplorer‚Å.
-				dprintf( L"ShellExecute: %d\n", (int)r );
-				r = ShellExecute(NULL, L"open", L"explorer", notify->GetLiveURL().c_str(), NULL, SW_SHOWNORMAL );
-				dprintf( L"ShellExecute: %d\n", (int)r );
-			}
+			OpenURL( notify->GetLiveURL() );
 			KillTimer( hWnd, 1 );
 			PostMessage( hWnd, WM_CLOSE, 0, 0 );
 		}else if( x>=rect.left && x<=rect.right && y>=rect.top && y<=rect.bottom ){

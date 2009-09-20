@@ -6,6 +6,8 @@
 #include <gdiplus.h>
 using namespace Gdiplus;
 
+#include "define.h"
+
 #include "tWindow.h"
 #include "iTunesLib.h"
 #include "tNetwork.h"
@@ -30,14 +32,11 @@ using namespace Gdiplus;
 #pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 
-#define APP_TITLE				L"Hatsune Miclock"
-#define REG_SUBKEY				L"Software\\Miku39.jp\\HatsuneMiclock"
+
 
 #define BUF_STRING_SIZE					(4096)	// 文字列バッファの最大文字列長(NUL文字込みで)
 #define ITUNES_TRACK_ID_BASE			(50000)	// メニュー項目のID(iTunesプレイリスト用)
 #define MENU_TRACKLIST_INSERT_POSITION	(2)		// トラックリストメニューの挿入先.
-
-#define TIMER_3MIN		(3)	// 3分タイマーの時間(分)
 
 
 struct T_MIKU_CONFIG {
@@ -54,12 +53,14 @@ struct T_MIKU_CONFIG {
 	std::wstring	nico_id;
 	std::wstring	nico_password;		// ここのパスワードは常時符号化済みのもので.
 	DWORD			nico_autologin;
+	std::wstring	nico_matchkeyword;	// キーワード通知.
 
 	// 番組ウィンドウの大きさ.
 	DWORD			nico_listwin_x;
 	DWORD			nico_listwin_y;
 	DWORD			nico_listwin_w;
 	DWORD			nico_listwin_h;
+
 }g_config;
 
 
@@ -101,7 +102,7 @@ struct T_MIKU_CLOCK {
 	std::wstring	currentartist;
 
 	NicoNamaAlert	*nico_alert;
-	tListWindow		*nico_listbc;	// list of niconama broadcast
+	tListWindow		*nico_listwin;	// list of niconama broadcast
 } g_miku;
 
 
@@ -306,8 +307,8 @@ void SaveToRegistory()
 	RegSetValueEx( hkey, L"SpeakType", 0, REG_DWORD, (BYTE*)&g_config.speak_type, sizeof(g_config.speak_type) );
 	RegSetValueEx( hkey, L"NicoNotifySound", 0, REG_SZ, (BYTE*)g_config.nico_notify_sound.c_str(), sizeof(WCHAR)*(g_config.nico_notify_sound.length()+1) );
 
-	if( g_miku.nico_listbc ){
-		HWND h = g_miku.nico_listbc->getWindowHandle();
+	if( g_miku.nico_listwin ){
+		HWND h = g_miku.nico_listwin->getWindowHandle();
 		if( !IsIconic(h) ){
 			GetWindowRect( h, &pt );
 			RegSetValueEx( hkey, L"NicoListX", 0, REG_DWORD, (BYTE*)&pt.left, sizeof(pt.left) );
@@ -406,6 +407,10 @@ void LoadFromRegistory()
 		g_config.nico_listwin_h = 480;
 	}
 
+	err = ReadRegistorySTR( hkey, L"NicoMatchKeyword", g_config.nico_matchkeyword );
+	if( err!=ERROR_SUCCESS ){
+		g_config.nico_matchkeyword = L"";
+	}
 
 	RegCloseKey( hkey );
 
@@ -823,8 +828,7 @@ void CreateNicoNamaNotify( NicoNamaProgram*program )
 
 	std::wstring str;
 
-	std::string s;
-	s = program->community + " - " + program->community_name;
+	std::string s = program->community + " - " + program->community_name;
 	strtowstr( s, str );
 	notifywin->SetWindowTitle( str );
 
@@ -842,28 +846,28 @@ void CreateNicoNamaNotify( NicoNamaProgram*program )
 	notifywin->SetLiveURL( str );
 
 	strtowstr( program->community, tmp );
-	if( tmp.find( L"ch",0 )!=std::wstring::npos ){
-		str = NICO_CHANNEL_URL + tmp;
-	}else{
-		str = NICO_COMMUNITY_URL + tmp;
-	}
+    str = tmp.find( L"ch",0 )!=std::wstring::npos ? NICO_CHANNEL_URL : NICO_COMMUNITY_URL;
+    str += tmp;
 	notifywin->SetCommunityURL( str );
 	notifywin->setSoundFile( g_config.nico_notify_sound );
-
 	notifywin->Show( program->playsound, program->posx, program->posy );
 }
 
+/** ニコ生アラートからの通知処理.
+ */
 LRESULT OnNicoNamaNotify( HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
 	switch( wparam ){
 	case NNA_REQUEST_CREATEWINDOW:
 		CreateNicoNamaNotify( (NicoNamaProgram*)lparam );
 		break;
+
 	case NNA_CLOSED_NOTIFYWINDOW:
-		if( g_miku.nico_alert ) g_miku.nico_alert->ShowNextNotifyWindow();
+		if( g_miku.nico_alert ) g_miku.nico_alert->ShowNextNoticeWindow();
 		break;
+
 	case NNA_UPDATE_RSS:
-		g_miku.nico_listbc->SetBoadcastingList( (std::map<std::string,NicoNamaRSSProgram>*)lparam );
+		g_miku.nico_listwin->SetBoadcastingList( g_miku.nico_alert->getRSSProgram() );
 		break;
 
 	default:
@@ -1213,14 +1217,15 @@ void NicoNamaLogin( HWND hWnd )
 	}
 
 	g_miku.nico_alert = new NicoNamaAlert( g_miku.hInst, g_miku.pWindow->getWindowHandle() );
-	g_miku.nico_alert->setDisplayType( NicoNamaAlert::NNA_WINDOW );
+	g_miku.nico_alert->SetDisplayType( NicoNamaAlert::NNA_WINDOW );
 	if( g_miku.cmdline.find(L"/balloon")!=std::wstring::npos ){
-		g_miku.nico_alert->setDisplayType( NicoNamaAlert::NNA_BALLOON );
+		g_miku.nico_alert->SetDisplayType( NicoNamaAlert::NNA_BALLOON );
 	}
 
 	wstrtostr( g_config.nico_id, userid );
 	wstrtostr( g_config.nico_password, userpassword );
 	rot47( userpassword );	// 復号化.
+
 	int r = g_miku.nico_alert->Auth( userid.c_str(), userpassword.c_str() );
 	if( r<0 ){
 		dprintf( L"Failed NicoAuth\n" );
@@ -1233,17 +1238,15 @@ void NicoNamaLogin( HWND hWnd )
 		return;
 	}
 
-	if( g_miku.nico_alert->connectCommentServer()==0 ){
-		if( g_miku.cmdline.find( L"/randompickup", 0 )!=std::wstring::npos ){
-			dprintf( L"Random Pickup Mode\n" );
-			g_miku.nico_alert->setRandomPickup( true );
-		}else{
-			dprintf( L"Standard Pickup Mode\n" );
-			g_miku.nico_alert->setRandomPickup( false );
-		}
-		dprintf( L"Logged in to Niconama.\n" );
-		g_miku.nico_alert->startThread();
+	if( g_miku.nico_alert->ConnectCommentServer()==0 ){
+		if( g_miku.nico_listwin ) g_miku.nico_listwin->setNicoNamaAlert( g_miku.nico_alert );
+		std::string str;
+		wstrtostr( g_config.nico_matchkeyword, str );
+		g_miku.nico_alert->setMatchKeyword( str );
+		g_miku.nico_alert->SetRandomPickup( g_miku.cmdline.find( L"/randompickup", 0 )!=std::wstring::npos?true:false );
+		g_miku.nico_alert->StartThread();
 		SetTaskTrayBalloonMessage( GetStringFromResource(IDS_NICO_CONNECTED) );
+		dprintf( L"Logged in to Niconama.\n" );
 	}else{
 		SAFE_DELETE( g_miku.nico_alert );
 
@@ -1285,7 +1288,7 @@ LRESULT OnContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		break;
 
 	case ID_BTN_BROADCASTING_LIST:
-		if( g_miku.nico_listbc ) g_miku.nico_listbc->Show();
+		if( g_miku.nico_listwin ) g_miku.nico_listwin->Show( g_miku.nico_alert );
 		break;
 
 	default:
@@ -1448,7 +1451,7 @@ LRESULT OnTimer( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		KillTimer( hWnd, TIMER_ID_REFRESH_TIPHELP );
 		break;
 	case TIMER_ID_NICO_KEEPALIVE:
-		if( g_miku.nico_alert ) g_miku.nico_alert->keepalive();
+		if( g_miku.nico_alert ) g_miku.nico_alert->KeepAlive();
 		break;
 
 	case TIMER_ID_3MIN:
@@ -1466,7 +1469,8 @@ LRESULT OnTimer( HWND hWnd, WPARAM wParam, LPARAM lParam )
 
 	case TIMER_ID_RSS_UPDATE:
 		if( g_miku.nico_alert ){
-			g_miku.nico_alert->getAllRSSAndUpdate();
+			// RSS更新スレッドを起動.
+			g_miku.nico_alert->GetAllRSSAndUpdate();
 		}
 		break;
 	}
@@ -1629,9 +1633,9 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
     g_miku.pWindow->setTopMost( g_config.isTopMost );
     g_miku.pWindow->show();
 
-	g_miku.nico_listbc = new tListWindow( hInstance, g_miku.pWindow->getWindowHandle() );
-	MoveWindow( g_miku.nico_listbc->getWindowHandle(), g_config.nico_listwin_x, g_config.nico_listwin_y, g_config.nico_listwin_w, g_config.nico_listwin_h, TRUE );
-	//g_miku.nico_listbc->Show();
+	g_miku.nico_listwin = new tListWindow( hInstance, g_miku.pWindow->getWindowHandle() );
+	MoveWindow( g_miku.nico_listwin->getWindowHandle(), g_config.nico_listwin_x, g_config.nico_listwin_y, g_config.nico_listwin_w, g_config.nico_listwin_h, TRUE );
+	//g_miku.nico_listwin->Show();
 
 	RegisterTaskTrayIcon();
 
@@ -1655,7 +1659,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 
 	UnregisterTaskTrayIcon();
 
-	SAFE_DELETE( g_miku.nico_listbc );
+	SAFE_DELETE( g_miku.nico_listwin );
 	SAFE_DELETE( g_miku.nico_alert );
     SAFE_DELETE( g_miku.pWindow );
 

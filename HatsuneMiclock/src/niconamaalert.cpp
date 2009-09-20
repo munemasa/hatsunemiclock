@@ -15,6 +15,8 @@ http://dic.nicovideo.jp/a/%E3%83%8B%E3%82%B3%E7%94%9F%E3%82%A2%E3%83%A9%E3%83%BC
 #include "udmessages.h"
 #include "niconamaalert.h"
 
+#include "myregexp.h"
+
 #include "stringlib.h"
 #include "debug.h"
 
@@ -54,23 +56,64 @@ static wchar_t *g_rsslist[NICONAMA_MAX_RSS] = {
 	NICONAMA_R18_RSS,
 };
 
+// RSS読み込みスレッドとの通信用.
 struct RssReadRequest {
-	std::wstring rssurl;
-	char	*data;
-	DWORD	datalen;
-	HANDLE	hThread;
+	std::wstring rssurl;    ///< RSSのURL
+	char	*data;          ///< DLしたデータ(あとでfree()すること)
+	DWORD	datalen;        ///< DLしたサイズ.
+	HANDLE	hThread;        ///< スレッドハンドル.
 	int index;
 };
 
-// RSSを取得して更新通知を投げるまでをやるスレッド.
+
+void AddRSSProgram( std::map<std::string,NicoNamaRSSProgram>& rss, NicoNamaRSSProgram &program )
+{
+	typedef std::pair<std::string,NicoNamaRSSProgram> thePair;
+	rss.insert( thePair(program.community_id, program) );
+}
+
+int AddRSSProgram( std::map<std::string,NicoNamaRSSProgram>& rss, xmlNodePtr channel )
+{
+    xmlNodePtr node;
+    int total_num = 0;
+    if( !channel ) return 0;
+
+    for( node=channel->children; node; node=node->next ){
+        if( node->type!=XML_ELEMENT_NODE ) continue;
+        if( strcmp( (char*)node->name,"total_count" )==0 ){
+			if( node->children && node->children->content ){
+				total_num = atoi( (char*)node->children->content );
+				dprintf( L"total_count=%d\n", total_num );
+			}
+        }
+        if( strcmp( (char*)node->name,"item" )==0 ){
+            // 番組個々の情報.
+            NicoNamaRSSProgram prog;
+            GetBroadcastingInfoFromRSS( node, prog );
+            AddRSSProgram( rss, prog );
+            //dprintf( L"community_id=%S\n", prog.community_id.c_str() );
+        }
+    }
+    return total_num;
+}
+
+
+
+/** RSSを取得して更新通知を投げるまでをやるスレッド.
+ * _beginthread()によって起動されて、RSSを読んで親ウィンドウに対してDL完了通知を投げる.
+ * WM_TIMERによって親ウィンドウから呼ばれている.
+ */
 static void thNicoNamaAlertGetRSSAndUpdate(LPVOID v)
 {
 	NicoNamaAlert *nico = (NicoNamaAlert*)v;
 	dprintf( L"Retrieving RSS...\n" );
-	nico->getAllRSS();
+	nico->GetAllRSS();
 	dprintf( L"done.\n" );
 	// 番組リストを更新させる.
-	SendMessage( nico->getParentHWND(), WM_NNA_NOTIFY, NNA_UPDATE_RSS, (LPARAM)nico->getRSSProgram() );
+	SendMessage( nico->getParentHWND(), WM_NNA_NOTIFY, NNA_UPDATE_RSS, 0 );
+
+	nico->NotifyKeywordMatch();
+
 	_endthread();
 }
 
@@ -83,25 +126,26 @@ static void thNicoNamaAlertReceiver(LPVOID v)
 	std::wstring str;
 	NicoNamaAlert *nico = (NicoNamaAlert*)v;
 
+	// まず開始時にRSSを取ってきて、放送中のものを通知しよう.
 	dprintf( L"NicoNamaAlert thread started.\n" );
 	dprintf( L"Retrieving RSS...\n" );
-	nico->getAllRSS();
+	nico->GetAllRSS();
 	dprintf( L"done.\n" );
+
+	// RSSで取得した情報を元に通知をする.
+	nico->NotifyNowBroadcasting();
+	nico->KeepAlive();	// 受信開始する.
 
 	SetTimer( nico->getParentHWND(), TIMER_ID_RSS_UPDATE, NICONAMA_RSS_GET_INTERVAL*60*1000, NULL );
 
-	// RSSで取得した情報を元に通知をする.
-	nico->notifyFromRSS();
-	nico->keepalive();	// 受信開始する.
-
 	// 番組リストを更新させる.
-	SendMessage( nico->getParentHWND(), WM_NNA_NOTIFY, NNA_UPDATE_RSS, (LPARAM)nico->getRSSProgram() );
+	SendMessage( nico->getParentHWND(), WM_NNA_NOTIFY, NNA_UPDATE_RSS, 0 );
 
 	while(1){
+		// あとはずっと受信待機.
 		int r;
-		r = nico->receive( str );
+		r = nico->Receive( str );
 		if( r<=0 ) break;
-		//dprintf( L"NNA:[%s]\n", str.c_str() );
 		if( str.find(L"<chat",0)==std::wstring::npos ) continue;
 
 		// 放送開始したコミュを調べますよ.
@@ -132,19 +176,22 @@ static void thNicoNamaAlertReceiver(LPVOID v)
 #else
 			time_t starttime = _atoi64( datestr.c_str() );
 #endif
-			dprintf( L"Your community(%s)'s broadcasting is started.\n", data[1].c_str() );
+			dprintf( L"Community(%s)'s broadcasting is started.\n", data[1].c_str() );
 			NicoNamaProgram program;
-			GetBroadcastingInfo( data[0], program );
-			program.start	  = starttime;
-			program.playsound = ispart;
-			nico->addProgramQueue( program );
+			GetBroadcastingInfo( data[0], program );    // data[0]は放送ID
+			program.start		  = starttime;
+			program.isparticipant = ispart;
+			program.playsound	  = ispart;
+			nico->AddNoticeQueue( program );
 		}
 	}
 	dprintf( L"NicoNamaAlert thread ended.\n" );
 	_endthread();
 }
 
-// _beginthreadex()を使う. __stdcallで.
+/** RSSを取ってくるだけ.
+ *_beginthreadex()を使う. __stdcallで.
+ */
 static unsigned WINAPI thRetrieveRSS(LPVOID v)
 {
 	RssReadRequest *req = (RssReadRequest*)v;
@@ -154,11 +201,15 @@ static unsigned WINAPI thRetrieveRSS(LPVOID v)
 	return 0;
 }
 
-// RSSを全部取得. _beginthreadex()で作る. __stdcallで.
-// ウェイトなしで一気に取得してくるけど問題ないかな.
+/** RSSを全部取得.
+ * _beginthreadex()で作る. __stdcallで.
+ * ウェイトなしで一気に取得してくるけど問題ないかな.
+ * ニコ生アラート(βa)もノーウェイトでどんどん取ってるからいいだろう.
+ */
 static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 {
 	NicoNamaAlert *nico = (NicoNamaAlert*)v;
+	std::map<std::string,NicoNamaRSSProgram> rss_list;
 	std::list<RssReadRequest*> reqlist;
 
     // 最初の1ページ目を同時にアクセスするくらいはいいよね.
@@ -186,7 +237,7 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 		int total_num = 0;
 
 		channel = xml.FindFirstNodeFromRoot("channel");
-        total_num = nico->addRSSProgram( channel );	// 1ページ目.
+		total_num = ::AddRSSProgram( rss_list, channel );	// 1ページ目.
 
 		int maxpages = (total_num-1)/18+1;	// 1ページ18件あるので.
 		for( int cnt=2; cnt<=maxpages; ){
@@ -215,7 +266,9 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 				tXML xml( (*subit)->data, (*subit)->datalen );
 				xmlNodePtr channel;
 				channel = xml.FindFirstNodeFromRoot("channel");
-				nico->addRSSProgram( channel );
+
+				::AddRSSProgram( rss_list, channel );
+
 				CloseHandle( (*subit)->hThread );
 				free( (*subit)->data );
 			}
@@ -224,6 +277,7 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 		free( (*it)->data );
 		delete (*it);
 	}
+	nico->setRSSProgram( rss_list );
 	_endthreadex(0);
 	return 0;
 }
@@ -378,7 +432,7 @@ int GetBroadcastingInfo( std::wstring broadcastingid, NicoNamaProgram &program )
 }
 
 // Shell_NotifyIconのバルーンで表示.
-int NicoNamaAlert::ShowNicoNamaInfoByBalloon( NicoNamaProgram &program )
+int NicoNamaAlert::ShowNicoNamaNoticeByBalloon( NicoNamaProgram &program )
 {
 	NOTIFYICONDATA icon;
 	ZeroMemory( &icon, sizeof(icon) );
@@ -407,24 +461,42 @@ int NicoNamaAlert::ShowNicoNamaInfoByBalloon( NicoNamaProgram &program )
  * ここで通知ウィンドウを作らずメインスレッドに作らせる。
  * そのためのメッセージ送信。
  */
-int NicoNamaAlert::ShowNicoNamaInfoByWindow( NicoNamaProgram &program )
+int NicoNamaAlert::ShowNicoNamaNoticeByWindow( NicoNamaProgram &program )
 {
 	SendMessage( m_parenthwnd, WM_NNA_NOTIFY, NNA_REQUEST_CREATEWINDOW, (LPARAM)&program );
+
+	NicoNamaNoticeType& alert = m_noticetype[ program.community ];
+	if( alert.type & NICO_NOTICETYPE_BROWSER ){
+		std::wstring url;
+		std::wstring tmp;
+		strtowstr( program.request_id, tmp );
+		url = NICO_LIVE_URL + tmp;
+		OpenURL( url );
+	}
+	if( alert.type & NICO_NOTICETYPE_SOUND ){
+	}
+	if( alert.type & NICO_NOTICETYPE_EXEC ){
+		std::wstring wstr;
+		std::wstring cmd;
+		strtowstr( program.request_id, wstr );
+
+		ShellExecute( getParentHWND(), L"open", alert.command.c_str(), wstr.c_str(), NULL, SW_SHOWNORMAL );
+	}
 	return 0;
 }
 
 /** ニコ生の放送開始通知を表示する.
  * これは呼ばれた瞬間にウィンドウが表示される。
  */
-int NicoNamaAlert::ShowNicoNamaInfo( NicoNamaProgram &program )
+int NicoNamaAlert::ShowNicoNamaNotice( NicoNamaProgram &program )
 {
 	switch( m_displaytype ){
 	case NNA_BALLOON:
-		ShowNicoNamaInfoByBalloon( program );
+		ShowNicoNamaNoticeByBalloon( program );
 		break;
 
 	case NNA_WINDOW:
-		ShowNicoNamaInfoByWindow( program );
+		ShowNicoNamaNoticeByWindow( program );
 		break;
 
 	default:
@@ -435,12 +507,12 @@ int NicoNamaAlert::ShowNicoNamaInfo( NicoNamaProgram &program )
 
 /** キューに貯まっている次の通知を表示する.
  */
-void NicoNamaAlert::ShowNextNotifyWindow()
+void NicoNamaAlert::ShowNextNoticeWindow()
 {
 	if( !m_program_queue.empty() ){
 		NicoNamaProgram program = m_program_queue.front();
-		m_program_queue.pop();
-		ShowNicoNamaInfo( program );
+		m_program_queue.pop_front();
+		ShowNicoNamaNotice( program );
 	}
 }
 
@@ -448,19 +520,25 @@ void NicoNamaAlert::ShowNextNotifyWindow()
  * 通知ウィンドウがないときには、キューに保存せずに即時に表示する。
  * @param nostack キューに積まないで即、表示メッセージを送信する.
  */
-void NicoNamaAlert::addProgramQueue( NicoNamaProgram &program, bool nostack )
+void NicoNamaAlert::AddNoticeQueue( NicoNamaProgram &program, bool nostack )
 {
 	if( this->m_displaytype==this->NNA_BALLOON ){
 		// バルーンタイプのときは即時でいいや.
-		ShowNicoNamaInfo( program );
+		ShowNicoNamaNotice( program );
 	}else{
 		dprintf( L"notify window queue %d.\n", m_program_queue.size() );
 		if( !nostack && FindWindow( T_NOTIFY_CLASS, NULL ) ){
 			// すでに通知ウィンドウがあるのでキューに貯めておこう.
 			dprintf( L"Already notify window...queueing.\n" );
-			m_program_queue.push( program );
+			if( program.isparticipant ){
+				// 参加コミュのものは先頭に突っ込む.
+				m_program_queue.push_front( program );
+			}else if( m_program_queue.size() < 10 ){
+				// キューに貯められるのは10個までに制限.
+				m_program_queue.push_back( program );
+			}
 		}else{
-			ShowNicoNamaInfo( program );
+			ShowNicoNamaNotice( program );
 		}
 	}
 
@@ -502,7 +580,7 @@ int NicoNamaAlert::Auth( const char*mail, const char*password )
 			// 第二認証で各種情報を取得する.
 			postdata = "ticket=" + m_ticket;
 			http.request( NICONAMA_LOGIN2, &recvdata, &recvlen, postdata.c_str(), postdata.length() );
-			getDataFrom2ndAuth( recvdata, recvlen );
+			getDataFrom2ndAuth( recvdata, recvlen );	// can obtain your community list.
 			free( recvdata );
 			if( m_userid.length()<=0 ){
 				dprintf( L"failed 2nd auth\n" );
@@ -517,7 +595,7 @@ int NicoNamaAlert::Auth( const char*mail, const char*password )
 }
 
 // コメントサーバに接続.
-int NicoNamaAlert::connectCommentServer()
+int NicoNamaAlert::ConnectCommentServer()
 {
 	int r = m_socket.connect( m_commentserver.c_str(), m_port );
 	// 5分くらいで.
@@ -526,7 +604,7 @@ int NicoNamaAlert::connectCommentServer()
 }
 
 // 5分に1回くらい呼んでおけば大丈夫かな.
-int NicoNamaAlert::keepalive()
+int NicoNamaAlert::KeepAlive()
 {
 	int s;
 	std::string str;
@@ -536,6 +614,7 @@ int NicoNamaAlert::keepalive()
 	return s;
 }
 
+// 所属コミュのリストも取れる.
 int NicoNamaAlert::getDataFrom2ndAuth( const char*xmltext, int len )
 {
 	tXML xml( xmltext, len );
@@ -592,48 +671,20 @@ std::string NicoNamaAlert::getTicket( const char*xmltext, int len )
 	return s;
 }
 
-void NicoNamaAlert::addRSSProgram( NicoNamaRSSProgram &program )
-{
-	typedef std::pair<std::string,NicoNamaRSSProgram> thePair;
-	m_rss_program.insert( thePair(program.community_id, program) );
-}
-
-int NicoNamaAlert::addRSSProgram( xmlNodePtr channel )
-{
-    xmlNodePtr node;
-    int total_num = 0;
-    if( !channel ) return 0;
-
-    for( node=channel->children; node; node=node->next ){
-        if( node->type!=XML_ELEMENT_NODE ) continue;
-        if( strcmp( (char*)node->name,"total_count" )==0 ){
-			if( node->children && node->children->content ){
-				total_num = atoi( (char*)node->children->content );
-				dprintf( L"total_count=%d\n", total_num );
-			}
-        }
-        if( strcmp( (char*)node->name,"item" )==0 ){
-            // 番組個々の情報.
-            NicoNamaRSSProgram prog;
-            GetBroadcastingInfoFromRSS( node, prog );
-            addRSSProgram( prog );
-            //dprintf( L"community_id=%S\n", prog.community_id.c_str() );
-        }
-    }
-    return total_num;
-}
 
 // 全部のRSSを取ってくるのはなかなか時間かかる.
-int NicoNamaAlert::getAllRSS()
+int NicoNamaAlert::GetAllRSS()
 {
 	HANDLE thread;
-	m_rss_program.clear();
 	thread = (HANDLE)_beginthreadex( NULL, 0, thNicoNamaRetriveAllRSS, this, 0, NULL );
 	WaitForSingleObject( thread, INFINITE );
+	CloseHandle( thread );
 	return 0;
 }
 
-int NicoNamaAlert::notifyFromRSS()
+/** 接続時の参加コミュ放送中番組の通知用.
+ */
+int NicoNamaAlert::NotifyNowBroadcasting()
 {
 	if( m_rss_program.empty() ) return -1;
 
@@ -669,11 +720,11 @@ int NicoNamaAlert::notifyFromRSS()
 
 			if( y<0 ){
 				prog.playsound = true;
-				addProgramQueue( prog, false );
+				AddNoticeQueue( prog, false );
 			}else{
 				prog.posx = x;
 				prog.posy = y;
-				addProgramQueue( prog, true );
+				AddNoticeQueue( prog, true );
 				y -= h+5;
 			}
 		}
@@ -682,18 +733,20 @@ int NicoNamaAlert::notifyFromRSS()
 }
 
 
-HANDLE NicoNamaAlert::startThread()
+HANDLE NicoNamaAlert::StartThread()
 {
+	Load();
 	return (HANDLE)_beginthread( thNicoNamaAlertReceiver, 0, this );
 }
 
-int NicoNamaAlert::getAllRSSAndUpdate()
+// WM_TIMERによって実行.
+int NicoNamaAlert::GetAllRSSAndUpdate()
 {
 	_beginthread( thNicoNamaAlertGetRSSAndUpdate, 0, this );
 	return 0;
 }
 
-int NicoNamaAlert::receive( std::wstring &str )
+int NicoNamaAlert::Receive( std::wstring &str )
 {
 	int r = 0;
 	str = L"";
@@ -723,18 +776,184 @@ bool NicoNamaAlert::isParticipant( std::wstring&communityid )
 	return false;
 }
 
+/** コミュニティ名を取得する.
+ * キャッシュ→RSS→ウェブの順で探す。
+ * @param commu_id コミュニティID(coXXXX,chXXXX)
+ * @return コミュニティ名を返す.
+ */
+std::wstring NicoNamaAlert::getCommunityName( std::wstring& commu_id )
+{
+	std::wstring ret;
+	std::string mb_commu_id;
+	std::string mbbuf;
+	wstrtostr( commu_id, mb_commu_id );
+
+	// キャッシュから探す.
+	mbbuf = m_community_name_cache[ mb_commu_id ];
+	if( mbbuf.length() ){
+		strtowstr( mbbuf, ret );
+		return ret;
+	}
+
+	// RSSから探す.
+	NicoNamaRSSProgram prog = m_rss_program[ mb_commu_id ];
+	if( prog.community_name.length() ){
+		m_community_name_cache[ mb_commu_id ] = prog.community_name;
+		strtowstr( prog.community_name, ret );
+		return ret;
+	}
+
+	// 見つからないなら直接コミュのページを見る.
+	tHttp http;
+	std::wstring url;
+	url = commu_id.find( L"ch" )!=std::wstring::npos ? NICO_CHANNEL_URL : NICO_COMMUNITY_URL;
+	url += commu_id;
+
+	char*data;
+	DWORD datalen;
+	int httpret;
+	httpret = http.request( url.c_str(), &data, &datalen );
+	tXML html(data, datalen, true);
+	char*title = html.FindFirstTextNodeFromRoot("title");
+	if( title ){
+		while( *title=='\x0a' || *title=='\x0d' ){
+			// 行頭にある改行コードを無視する.
+			title++;
+		}
+		mbbuf = title;
+		strtowstr( mbbuf, ret );
+		size_t pos = ret.rfind( L"-ニコニコ" );	// 末尾の邪魔を取り除く.
+		if( pos!=std::wstring::npos ){
+			ret = ret.substr(0,pos);
+		}
+		wstrtostr( ret, mbbuf );
+		m_community_name_cache[ mb_commu_id ] = mbbuf;
+	}
+	free(data);
+	return ret;
+}
+
+
+int NicoNamaAlert::Load()
+{
+	HKEY hkey;
+	HKEY hsubkey;
+	int i;
+	// アラートタイプの読み込み.
+	RegCreateKeyEx( HKEY_CURRENT_USER, REG_COMMUNITY_SUBKEY, 0, L"", REG_OPTION_NON_VOLATILE, KEY_READ, NULL, &hkey, NULL );
+
+	DWORD len;
+	RegQueryInfoKey( hkey, NULL, NULL, NULL, NULL, &len, NULL, NULL, NULL, NULL, NULL, NULL );
+	dprintf(L"subkey length is %d\n", len);
+	for(i=0; ;i++){
+		std::string co;
+		std::string coname;
+		WCHAR *subkey = new WCHAR[len+1];
+		DWORD l = len+1;
+		if( RegEnumKeyEx( hkey, i, subkey, &l, NULL, NULL, NULL, NULL )==ERROR_NO_MORE_ITEMS ) break;
+
+		std::wstring wstr = REG_COMMUNITY_SUBKEY L"\\";
+		wstr += subkey;	// create HKCU\Software\Miku39.jp\HatsuneMiclock\Communities\coXXXX
+		RegCreateKeyEx( HKEY_CURRENT_USER, wstr.c_str(), 0, L"", REG_OPTION_NON_VOLATILE, KEY_READ, NULL, &hsubkey, NULL );
+
+		NicoNamaNoticeType alert;
+		if( ReadRegistoryDW( hsubkey, L"Type", &alert.type )!=ERROR_SUCCESS ) goto regclose;
+		if( ReadRegistorySTR( hsubkey, L"Command", alert.command )!=ERROR_SUCCESS ) goto regclose;
+		if( ReadRegistorySTR( hsubkey, L"Name", wstr )!=ERROR_SUCCESS ) goto regclose;
+
+		wstrtostr( wstr, coname );
+		wstrtostr( std::wstring(subkey), co );
+
+		m_community_name_cache[ co ] = coname;
+		m_noticetype[ co ] = alert;
+		dprintf( L"%s loaded.\n", subkey );
+
+	  regclose:
+		RegCloseKey( hsubkey );
+		delete [] subkey;
+	}
+
+	RegCloseKey( hkey );
+	return 0;
+}
+
+
+int NicoNamaAlert::Save()
+{
+	HKEY hkey;
+	std::wstring key;
+	std::wstring value;
+	std::wstring data;
+
+
+	// アラートタイプの保存.
+	// HKCU\Software\Miku39.jp\HatsuneMiclock\Communities\coXXXX
+	std::map<std::string,NicoNamaNoticeType>::iterator it;
+	for(it=m_noticetype.begin(); it!=m_noticetype.end(); it++){
+		NicoNamaNoticeType& alert = (*it).second;
+		strtowstr( (*it).first, value );
+
+		key = REG_COMMUNITY_SUBKEY L"\\" + value;
+		RegCreateKeyEx( HKEY_CURRENT_USER, key.c_str(), 0, L"", REG_OPTION_NON_VOLATILE, KEY_WRITE, NULL, &hkey, NULL );
+
+		std::wstring cname = getCommunityName( value );
+		RegSetValueEx( hkey, L"Name", 0, REG_SZ, (BYTE*)cname.c_str(), sizeof(WCHAR)*(cname.length()+1) );
+		RegSetValueEx( hkey, L"Type", 0, REG_DWORD, (BYTE*)&alert.type, sizeof(alert.type) );
+		RegSetValueEx( hkey, L"Command", 0, REG_SZ, (BYTE*)alert.command.c_str(), sizeof(WCHAR)*(alert.command.length()+1) );
+
+		RegCloseKey( hkey );
+	}
+
+	return 0;
+}
+
+/** キーワードにマッチしたものを通知する.
+ */
+int NicoNamaAlert::NotifyKeywordMatch()
+{
+	std::map<std::string,NicoNamaRSSProgram>::iterator it;
+	std::string keyword = getMatchKeyword();
+	myPCRE re( keyword.c_str(), PCRE_UTF8|PCRE_MULTILINE );
+
+	if( keyword.length() && !re.hasError() ){
+		for(it=m_rss_program.begin(); it!=m_rss_program.end(); it++){
+			NicoNamaRSSProgram& p = (*it).second;
+			if( re.match( p.description.c_str() ) || re.match( p.title.c_str() ) ){
+                NicoNamaProgram prog;
+                prog.community		= p.community_id;
+                prog.community_name = p.community_name;
+                prog.description	= p.description;
+                prog.request_id		= p.guid;
+                prog.start			= p.pubDate;
+                prog.thumbnail		= p.thumbnail;
+                prog.title			= p.title;
+                prog.playsound		= false;
+				prog.isparticipant  = false;
+
+                std::wstring wstr;
+                strtowstr( prog.thumbnail, wstr );
+                tHttp http;
+                int httpret = http.request( wstr.c_str(), &prog.thumbnail_image, &prog.thumbnail_image_size );
+                dprintf( L"httpret=%d\n", httpret );
+                dprintf( L"thumbnail image size %d bytes.\n", prog.thumbnail_image_size );
+				AddNoticeQueue( prog );
+			}
+		}
+	}
+	return 0;
+}
+
 NicoNamaAlert::NicoNamaAlert( HINSTANCE hinst, HWND hwnd )
 {
+	m_matchkeyword = "";
+	m_announcedlist.clear();
 	m_hinst = hinst;
 	m_parenthwnd = hwnd;
-	setRandomPickup( false );
-#if 0
-	m_displaytype = NNA_BALLOON;
-#else
+	SetRandomPickup( false );
 	m_displaytype = NNA_WINDOW;
-#endif
 }
 
 NicoNamaAlert::~NicoNamaAlert()
 {
+	m_rss_program.clear();
 }

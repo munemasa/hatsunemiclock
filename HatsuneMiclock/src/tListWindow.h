@@ -30,6 +30,7 @@ class tListWindow {
 	HWND		m_listview;
 	HWND		m_searchdialog;
 
+	NicoNamaAlert *m_nico;
 	std::vector<NicoNamaRSSProgram>	m_rssprog;
 	std::vector<NicoNamaRSSProgram> m_filteredlist;
 
@@ -45,13 +46,15 @@ public:
 
 	inline void setSearchDialog( HWND h ){ m_searchdialog = h; }
 	inline HWND getSearchDialog() const { return m_searchdialog; }
+	inline NicoNamaAlert* getNicoNamaAlert(){ return m_nico; }
+	inline void setNicoNamaAlert( NicoNamaAlert*n ){ m_nico = n; }
 
 	void SetFilter( std::string filter );
-	void SetBoadcastingList( std::map<std::string,NicoNamaRSSProgram>*rssprog );
+	void SetBoadcastingList( std::map<std::string,NicoNamaRSSProgram>& rssprog );
 	void ShowContextMenu( int index );
 	void GoPage( int col, int type );
 
-	void Show();
+	void Show( NicoNamaAlert*nico );
 	void Hide();
 
 	inline void ResizeClientArea( int w, int h ){

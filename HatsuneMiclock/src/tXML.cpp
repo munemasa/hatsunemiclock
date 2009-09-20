@@ -1,10 +1,16 @@
 #include "tXML.h"
 
+#include "libxml/HTMLtree.h"
+#include "libxml/HTMLparser.h"
 
 
-tXML::tXML( const char*xml, int len )
+tXML::tXML( const char*xml, int len, bool html )
 {
-	m_xmldoc = xmlReadMemory( xml, len, "noname.xml", NULL, 0 );
+	if( html ){
+		m_xmldoc = htmlReadMemory( xml, len, "noname.html", NULL, 0 );
+	}else{
+		m_xmldoc = xmlReadMemory( xml, len, "noname.xml", NULL, 0 );
+	}
 	m_root = xmlDocGetRootElement( m_xmldoc );
 }
 
