@@ -1576,44 +1576,21 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 }
 
 
-#include "myregexp.h"
-void testpcre()
+bool CheckExistWindow()
 {
-	int b;
-	pcre_config( PCRE_CONFIG_UTF8, &b );
-	if( b ){ dprintf(L"pcre support utf-8\n"); } else { dprintf(L"pcre do not support utf-8\n"); }
-
-	std::string utf8_pattern;
-	std::wstring wstr = L"(初音|ミク)";
-	std::wstring wstr2;
-	wstrtostr( wstr, utf8_pattern );
-	strtowstr( utf8_pattern, wstr2 );
-
-	myPCRE re( utf8_pattern.c_str(), PCRE_UTF8|PCRE_MULTILINE );
-
-	std::wstring str[6] = {
-		L"初音ミク",
-		L"初音",
-		L"ミク",
-		L"初 音 ミ ク",
-		L"部分一致初音ミク部分一致",
-		L"なし",
-	};
-
-	for(int i=0;i<6;i++){
-		std::string utf8;
-		wstrtostr( str[i], utf8 );
-		if( re.match( utf8.c_str() ) ){
-			dprintf( L"%s\n", str[i].c_str() );
-		}
+	HWND h;
+	h = FindWindow( APP_TITLE, NULL );
+	if( h ){
+		ShowWindow( h, SW_SHOWNORMAL );
+		return true;
 	}
-
+	return false;
 }
 
 
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
-	testpcre();
+	if( CheckExistWindow() ) return 0;
 
 	InitMikuClock();
 	g_miku.cmdline = lpCmdLine;

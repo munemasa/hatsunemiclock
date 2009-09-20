@@ -132,9 +132,12 @@ static void thNicoNamaAlertReceiver(LPVOID v)
 	nico->GetAllRSS();
 	dprintf( L"done.\n" );
 
-	// RSSで取得した情報を元に通知をする.
+	// RSSで取得した情報を元に参加コミュの放送中のものを通知をする.
 	nico->NotifyNowBroadcasting();
 	nico->KeepAlive();	// 受信開始する.
+
+	// キーワードマッチしたものを通知する.
+	nico->NotifyKeywordMatch();
 
 	SetTimer( nico->getParentHWND(), TIMER_ID_RSS_UPDATE, NICONAMA_RSS_GET_INTERVAL*60*1000, NULL );
 
@@ -147,6 +150,7 @@ static void thNicoNamaAlertReceiver(LPVOID v)
 		r = nico->Receive( str );
 		if( r<=0 ) break;
 		if( str.find(L"<chat",0)==std::wstring::npos ) continue;
+		dprintf( L"NNA:%s\n", str.c_str() );
 
 		// 放送開始したコミュを調べますよ.
 		// [放送ID],[チャンネル＆コミュニティID],[放送主のユーザーID]
@@ -230,6 +234,7 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 
 	std::list<RssReadRequest*>::iterator it;
 	for( it=reqlist.begin(); it!=reqlist.end(); it++ ){
+		// 6カテゴリごとに処理する.
 		WaitForSingleObject( (*it)->hThread, INFINITE );
 
 		tXML xml( (*it)->data, (*it)->datalen );
@@ -240,6 +245,7 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 		total_num = ::AddRSSProgram( rss_list, channel );	// 1ページ目.
 
 		int maxpages = (total_num-1)/18+1;	// 1ページ18件あるので.
+		// RSSを2ページ目から全部取る.
 		for( int cnt=2; cnt<=maxpages; ){
 			std::list<RssReadRequest*> subreqlist;
 
@@ -259,6 +265,7 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 				subreqlist.push_back( subreq );
 			}
 
+			// 要求した分だけ受信を待って処理.
 			std::list<RssReadRequest*>::iterator subit;
 			for( subit=subreqlist.begin(); subit!=subreqlist.end(); subit++ ){
 				WaitForSingleObject( (*subit)->hThread, INFINITE );
@@ -271,6 +278,7 @@ static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
 
 				CloseHandle( (*subit)->hThread );
 				free( (*subit)->data );
+				delete (*subit);
 			}
 		}
 		CloseHandle( (*it)->hThread );
@@ -598,8 +606,8 @@ int NicoNamaAlert::Auth( const char*mail, const char*password )
 int NicoNamaAlert::ConnectCommentServer()
 {
 	int r = m_socket.connect( m_commentserver.c_str(), m_port );
-	// 5分くらいで.
-	SetTimer( this->m_parenthwnd, TIMER_ID_NICO_KEEPALIVE, 5*60*1000, NULL );
+	// 3分で切られるので2分に1回くらい.
+	SetTimer( this->m_parenthwnd, TIMER_ID_NICO_KEEPALIVE, 2*60*1000, NULL );
 	return r;
 }
 
@@ -683,6 +691,7 @@ int NicoNamaAlert::GetAllRSS()
 }
 
 /** 接続時の参加コミュ放送中番組の通知用.
+ * 接続時の1回だけ呼ばれる.
  */
 int NicoNamaAlert::NotifyNowBroadcasting()
 {
@@ -796,7 +805,8 @@ std::wstring NicoNamaAlert::getCommunityName( std::wstring& commu_id )
 	}
 
 	// RSSから探す.
-	NicoNamaRSSProgram prog = m_rss_program[ mb_commu_id ];
+	std::map<std::string,NicoNamaRSSProgram> &rss = getRSSProgram();
+	NicoNamaRSSProgram prog = rss[ mb_commu_id ];
 	if( prog.community_name.length() ){
 		m_community_name_cache[ mb_commu_id ] = prog.community_name;
 		strtowstr( prog.community_name, ret );
@@ -907,6 +917,15 @@ int NicoNamaAlert::Save()
 	return 0;
 }
 
+bool NicoNamaAlert::isAlreadyAnnounced( std::string& request_id )
+{
+	std::list<std::string>::iterator it;
+	for(it=m_announcedlist.begin(); it!=m_announcedlist.end(); it++){
+		if( (*it)==request_id ) return true;
+	}
+	return false;
+}
+
 /** キーワードにマッチしたものを通知する.
  */
 int NicoNamaAlert::NotifyKeywordMatch()
@@ -918,9 +937,17 @@ int NicoNamaAlert::NotifyKeywordMatch()
 	if( keyword.length() && !re.hasError() ){
 		for(it=m_rss_program.begin(); it!=m_rss_program.end(); it++){
 			NicoNamaRSSProgram& p = (*it).second;
+
 			if( re.match( p.description.c_str() ) || re.match( p.title.c_str() ) ){
-                NicoNamaProgram prog;
-                prog.community		= p.community_id;
+				NicoNamaProgram prog;
+				std::wstring wstr_commuid;
+				strtowstr( p.community_id, wstr_commuid );
+
+				if( isParticipant( wstr_commuid ) ) continue;	// 参加コミュは通知対象外.
+				if( isAlreadyAnnounced( p.guid ) ) continue;	// すでに通知したものも対象外.
+				m_announcedlist.push_back( p.guid );
+
+				prog.community		= p.community_id;
                 prog.community_name = p.community_name;
                 prog.description	= p.description;
                 prog.request_id		= p.guid;
@@ -940,6 +967,18 @@ int NicoNamaAlert::NotifyKeywordMatch()
 			}
 		}
 	}
+
+	// RSSにない通知済み番組を削除.
+	for( std::list<std::string>::iterator i=m_announcedlist.begin(); i!=m_announcedlist.end(); i++ ){
+		bool exist = false;
+		for(it=m_rss_program.begin(); it!=m_rss_program.end(); it++){
+			if( (*i)==(*it).second.guid ) exist = true;
+		}
+		if( !exist ){
+			(*i) = "";	// 削除するものマーキング.
+		}
+	}
+	m_announcedlist.remove( "" );
 	return 0;
 }
 

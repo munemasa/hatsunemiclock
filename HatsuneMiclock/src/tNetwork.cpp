@@ -323,7 +323,16 @@ int tSocket::send( const char*buf, int len )
 int tSocket::recv( char*buf, int len )
 {
 	if( m_socket==INVALID_SOCKET ) return -1;
-	return ::recv( m_socket, buf, len, 0 );
+	int r = ::recv( m_socket, buf, len, 0 );
+#ifdef DEBUG
+	if( r==0 ){
+		dprintf( L"connection was closed.\n" );
+	}
+	if( r<=0 ){
+		dprintf( L"recv failed %d\n", errno );
+	}
+#endif
+	return r;
 }
 
 int tSocket::close()

@@ -173,6 +173,8 @@ private:
 	int ShowNicoNamaNoticeByBalloon( NicoNamaProgram &program );
 	int ShowNicoNamaNoticeByWindow( NicoNamaProgram &program );
 
+	bool isAlreadyAnnounced( std::string& request_id );
+
 public:
 	void setRSSProgram( std::map<std::string,NicoNamaRSSProgram>& src ){
 		m_rss_cs.enter();
