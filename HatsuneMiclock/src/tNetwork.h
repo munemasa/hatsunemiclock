@@ -28,6 +28,7 @@ public:
 	tHttp();
 	~tHttp();
 
+	// 返却したポインタを呼び出しもとで解放していればメモリリークなし.
 	int request( const WCHAR*url, char**data, DWORD*datalen, const char*postdata=NULL, DWORD postlen=0 );
 };
 

@@ -177,6 +177,8 @@ BEGIN
     BEGIN
         MENUITEM "コミュニティ...(&C)",               ID_MENU_BTN_COMMUNITY
         MENUITEM "キーワード通知...(&K)",              ID_MENU_BTN_NOTICE
+        MENUITEM SEPARATOR
+        MENUITEM "デバッグ",                        ID_MENU_BTN_DEBUG, GRAYED
     END
 END
 
@@ -198,11 +200,6 @@ END
 #ifdef APSTUDIO_INVOKED
 GUIDELINES DESIGNINFO 
 BEGIN
-    IDD_ABOUT_DIALOG, DIALOG
-    BEGIN
-        RIGHTMARGIN, 195
-    END
-
     IDD_COMMUNITY_LIST, DIALOG
     BEGIN
         BOTTOMMARGIN, 183
@@ -258,7 +255,7 @@ BEGIN
     LTEXT           "パスワード",IDC_STATIC,31,52,28,8
     EDITTEXT        IDC_EDIT_NOCO_EMAIL,62,21,137,16,ES_AUTOHSCROLL
     EDITTEXT        IDC_NICO_PASSWORD,62,48,137,16,ES_PASSWORD | ES_AUTOHSCROLL
-    CONTROL         "現在のメールアドレスとパスワードを保存する",IDC_CHK_NICOIDPASS_SAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,62,71,127,10
+    CONTROL         "入力したメールアドレスとパスワードを保存する",IDC_CHK_NICOIDPASS_SAVE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,62,71,138,10
     CONTROL         "今後、自動で接続する",IDC_REMEMBERME,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,62,83,105,14
     DEFPUSHBUTTON   "接続",IDOK,111,110,41,18
     PUSHBUTTON      "キャンセル",IDCANCEL,158,110,41,18
@@ -281,7 +278,7 @@ CAPTION "コミュニティリスト"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
     CONTROL         "",IDC_COMMUNITY_LIST,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,6,25,221,132
-    LTEXT           "自動でブラウザを起動する場合、そのコミュにチェックしてください。",IDC_STATIC,6,10,170,8
+    LTEXT           "自動でブラウザを起動する場合、そのコミュニティをチェックしてください。",IDC_STATIC,6,10,184,8
     PUSHBUTTON      "OK",IDOK,141,163,41,18
     PUSHBUTTON      "キャンセル",IDCANCEL,186,163,41,18
 END

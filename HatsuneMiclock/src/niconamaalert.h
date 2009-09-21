@@ -17,12 +17,25 @@
 #include "define.h"
 
 //----------------------------------------------------------------------
-// macros
+// macros & defines
 //----------------------------------------------------------------------
 #define NICO_NOTICETYPE_WINDOW		0x00000001		// open window(常時有効)
 #define NICO_NOTICETYPE_SOUND		0x00000002		// play sound(未使用)
 #define NICO_NOTICETYPE_BROWSER		0x00000004		// run browser
 #define NICO_NOTICETYPE_EXEC		0x00000008		// run command
+
+// 1ページ18番組なので、それぞれ(nicolive:total_count-1)/18+1回読めば全部読めることになる.
+#define NICONAMA_COMMON_RSS		L"http://live.nicovideo.jp/recent/rss?tab=common&sort=start&p="	// 一般
+#define NICONAMA_TRY_RSS		L"http://live.nicovideo.jp/recent/rss?tab=try&sort=start&p="	// やってみた
+#define NICONAMA_GAME_RSS		L"http://live.nicovideo.jp/recent/rss?tab=live&sort=start&p="	// ゲーム
+#define NICONAMA_REQUEST_RSS	L"http://live.nicovideo.jp/recent/rss?tab=req&sort=start&p="	// リクエスト
+#define NICONAMA_FACE_RSS		L"http://live.nicovideo.jp/recent/rss?tab=face&sort=start&p="	// 顔出し
+#define NICONAMA_R18_RSS		L"http://live.nicovideo.jp/recent/rss?tab=r18&sort=start&p="	// R-18
+#define NICONAMA_MAX_RSS		(6)
+
+#define NICONAMA_LOGIN1			L"https://secure.nicovideo.jp/secure/login?site=nicolive_antenna"
+#define NICONAMA_LOGIN2			L"http://live.nicovideo.jp/api/getalertstatus"
+#define NICONAMA_GETINFO		L"http://live.nicovideo.jp/api/getstreaminfo/lv"
 
 
 //----------------------------------------------------------------------
@@ -32,8 +45,9 @@ class tNotifyWindow;
 
 
 //----------------------------------------------------------------------
-// define
+// class & structure
 //----------------------------------------------------------------------
+
 // これは通知ウィンドウに渡す情報.
 struct NicoNamaProgram {
 	// utf-8
@@ -77,7 +91,7 @@ struct NicoNamaProgram {
 	}
 	NicoNamaProgram& operator=( const NicoNamaProgram &src ){
 		// 代入演算のとき.
-		SAFE_DELETE( this->thumbnail_image );
+		SAFE_DELETE( this->thumbnail_image );	// 古い画像は解放.
 		this->isparticipant		= src.isparticipant;
 		this->posx				= src.posx;
 		this->posy				= src.posy;

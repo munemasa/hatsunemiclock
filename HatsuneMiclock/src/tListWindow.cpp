@@ -318,6 +318,10 @@ static LRESULT OnMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		listwin->GoPage( col, GO_TYPE_COMMUNITY_PAGE );
 		break;
 
+	case ID_MENU_BTN_DEBUG:
+		listwin->SetBoadcastingList( listwin->getNicoNamaAlert()->getRSSProgram() );
+		break;
+
 	default:
         break;
     }

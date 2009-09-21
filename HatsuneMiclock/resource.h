@@ -152,13 +152,15 @@
 #define ID_40094                        40094
 #define ID_MENU_BTN_COMMUNITY           40095
 #define ID_MENU_BTN_NOTICE              40096
+#define ID_40097                        40097
+#define ID_MENU_BTN_DEBUG               40098
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        200
-#define _APS_NEXT_COMMAND_VALUE         40097
+#define _APS_NEXT_COMMAND_VALUE         40099
 #define _APS_NEXT_CONTROL_VALUE         1068
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

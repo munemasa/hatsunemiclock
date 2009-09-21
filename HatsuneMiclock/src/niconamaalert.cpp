@@ -26,19 +26,6 @@ http://dic.nicovideo.jp/a/%E3%83%8B%E3%82%B3%E7%94%9F%E3%82%A2%E3%83%A9%E3%83%BC
 
 #pragma warning( disable : 4996 ) 
 
-// 1ページ18番組なので、それぞれ(nicolive:total_count-1)/18+1回読めば全部読めることになる.
-#define NICONAMA_COMMON_RSS		L"http://live.nicovideo.jp/recent/rss?tab=common&sort=start&p="	// 一般
-#define NICONAMA_TRY_RSS		L"http://live.nicovideo.jp/recent/rss?tab=try&sort=start&p="	// やってみた
-#define NICONAMA_GAME_RSS		L"http://live.nicovideo.jp/recent/rss?tab=live&sort=start&p="	// ゲーム
-#define NICONAMA_REQUEST_RSS	L"http://live.nicovideo.jp/recent/rss?tab=req&sort=start&p="	// リクエスト
-#define NICONAMA_FACE_RSS		L"http://live.nicovideo.jp/recent/rss?tab=face&sort=start&p="	// 顔出し
-#define NICONAMA_R18_RSS		L"http://live.nicovideo.jp/recent/rss?tab=r18&sort=start&p="	// R-18
-#define NICONAMA_MAX_RSS		(6)
-
-#define NICONAMA_LOGIN1			L"https://secure.nicovideo.jp/secure/login?site=nicolive_antenna"
-#define NICONAMA_LOGIN2			L"http://live.nicovideo.jp/api/getalertstatus"
-#define NICONAMA_GETINFO		L"http://live.nicovideo.jp/api/getstreaminfo/lv"
-
 
 //----------------------------------------------------------------------
 // prototype
@@ -63,6 +50,8 @@ struct RssReadRequest {
 	DWORD	datalen;        ///< DLしたサイズ.
 	HANDLE	hThread;        ///< スレッドハンドル.
 	int index;
+
+	RssReadRequest(){ hThread = NULL; data = NULL; datalen = 0; index = 0; }
 };
 
 
@@ -88,9 +77,10 @@ int AddRSSProgram( std::map<std::string,NicoNamaRSSProgram>& rss, xmlNodePtr cha
         }
         if( strcmp( (char*)node->name,"item" )==0 ){
             // 番組個々の情報.
-            NicoNamaRSSProgram prog;
-            GetBroadcastingInfoFromRSS( node, prog );
-            AddRSSProgram( rss, prog );
+            NicoNamaRSSProgram *prog = new NicoNamaRSSProgram;
+            GetBroadcastingInfoFromRSS( node, *prog );
+            AddRSSProgram( rss, *prog );
+			delete prog;
             //dprintf( L"community_id=%S\n", prog.community_id.c_str() );
         }
     }
@@ -116,6 +106,7 @@ static void thNicoNamaAlertGetRSSAndUpdate(LPVOID v)
 
 	_endthread();
 }
+
 
 /** ニコ生アラート受信スレッド.
  *
@@ -150,7 +141,7 @@ static void thNicoNamaAlertReceiver(LPVOID v)
 		r = nico->Receive( str );
 		if( r<=0 ) break;
 		if( str.find(L"<chat",0)==std::wstring::npos ) continue;
-		dprintf( L"NNA:%s\n", str.c_str() );
+		//dprintf( L"NNA:%s\n", str.c_str() );
 
 		// 放送開始したコミュを調べますよ.
 		// [放送ID],[チャンネル＆コミュニティID],[放送主のユーザーID]
@@ -199,95 +190,101 @@ static void thNicoNamaAlertReceiver(LPVOID v)
 static unsigned WINAPI thRetrieveRSS(LPVOID v)
 {
 	RssReadRequest *req = (RssReadRequest*)v;
-	tHttp http;
-	http.request( req->rssurl.c_str(), &req->data, &req->datalen );
+	tHttp *http = new tHttp;
+	http->request( req->rssurl.c_str(), &req->data, &req->datalen );
+	delete http;
 	_endthreadex(0);
 	return 0;
 }
 
+class nico_test {
+public:
+	nico_test(){ dprintf(L"*** construct nico_test\n"); }
+	~nico_test(){ dprintf(L"*** destruct nico_test\n"); }
+};
+
+
 /** RSSを全部取得.
- * _beginthreadex()で作る. __stdcallで.
  * ウェイトなしで一気に取得してくるけど問題ないかな.
  * ニコ生アラート(βa)もノーウェイトでどんどん取ってるからいいだろう.
+ *
+ * この辺をメモリリークチェック。
+ * 関数のエピローグでデストラクタ呼んでもらうためのラッパー関数。
  */
-static unsigned WINAPI thNicoNamaRetriveAllRSS(LPVOID v)
+static void wrapper_retrieve_rss_for_destructor( LPVOID v )
 {
+	nico_test nnnnn;
 	NicoNamaAlert *nico = (NicoNamaAlert*)v;
 	std::map<std::string,NicoNamaRSSProgram> rss_list;
-	std::list<RssReadRequest*> reqlist;
+	RssReadRequest *reqlist = new RssReadRequest[ NICONAMA_MAX_RSS ];
+	tXML *xml = NULL;
 
     // 最初の1ページ目を同時にアクセスするくらいはいいよね.
 	for(int i=0; i<NICONAMA_MAX_RSS; i++ ){
 		wchar_t *rss = g_rsslist[i];
-		RssReadRequest *rssreq = new RssReadRequest();
-		rssreq->index	= i;
-		rssreq->rssurl	= rss;
-		rssreq->rssurl	+= L"1";
-		rssreq->hThread	= (HANDLE)_beginthreadex( NULL, 0, thRetrieveRSS, rssreq, 0, NULL );
-		if( rssreq->hThread==(HANDLE)1L ){
+		reqlist[i].index	= i;
+		reqlist[i].rssurl	= rss;
+		reqlist[i].rssurl	+= L"1";
+		reqlist[i].hThread	= (HANDLE)_beginthreadex( NULL, 0, thRetrieveRSS, &reqlist[i], 0, NULL );
+		if( reqlist[i].hThread==(HANDLE)0L ){
 			int err = errno;
-			delete rssreq;
-			break;
 		}
-		reqlist.push_back( rssreq );
 	}
 
-	std::list<RssReadRequest*>::iterator it;
-	for( it=reqlist.begin(); it!=reqlist.end(); it++ ){
+	for(int i=0; i<NICONAMA_MAX_RSS; i++ ){
+		if( reqlist[i].hThread==0 ) continue;
 		// 6カテゴリごとに処理する.
-		WaitForSingleObject( (*it)->hThread, INFINITE );
+		WaitForSingleObject( reqlist[i].hThread, INFINITE );
 
-		tXML xml( (*it)->data, (*it)->datalen );
-		xmlNodePtr channel;
 		int total_num = 0;
-
-		channel = xml.FindFirstNodeFromRoot("channel");
+		int index = reqlist[i].index;
+		xml = new tXML( reqlist[i].data, reqlist[i].datalen );
+		xmlNodePtr channel;
+		channel = xml->FindFirstNodeFromRoot("channel");
 		total_num = ::AddRSSProgram( rss_list, channel );	// 1ページ目.
+		delete xml;
+
+		CloseHandle( reqlist[i].hThread );
+		free( reqlist[i].data );
 
 		int maxpages = (total_num-1)/18+1;	// 1ページ18件あるので.
 		// RSSを2ページ目から全部取る.
 		for( int cnt=2; cnt<=maxpages; ){
-			std::list<RssReadRequest*> subreqlist;
-
 			// (HTTP/1.1なので)2ページ同時に要求.
-			for(int j=0; j<2 && cnt<=maxpages; cnt++,j++){
-				RssReadRequest *subreq = new RssReadRequest();
+#define SIMULTANEOUS_HTTP		(2)
+			RssReadRequest *subreqlist = new RssReadRequest[ SIMULTANEOUS_HTTP ];
+
+			for(int j=0; j<SIMULTANEOUS_HTTP && cnt<=maxpages; cnt++,j++){
 				wchar_t tmp[128];
-				subreq->rssurl = g_rsslist[(*it)->index];
-				subreq->rssurl += _itow( cnt, tmp, 10 );
-				subreq->hThread = (HANDLE)_beginthreadex( NULL, 0, thRetrieveRSS, subreq, 0, NULL );
-				if( subreq->hThread==(HANDLE)1L ){
+				subreqlist[j].rssurl = g_rsslist[ index ];
+				subreqlist[j].rssurl += _itow( cnt, tmp, 10 );
+				subreqlist[j].hThread = (HANDLE)_beginthreadex( NULL, 0, thRetrieveRSS, &subreqlist[j], 0, NULL );
+				if( subreqlist[j].hThread==(HANDLE)0L ){
 					// error occurred
 					int err = errno;
-					delete subreq;
-					break;
 				}
-				subreqlist.push_back( subreq );
 			}
 
 			// 要求した分だけ受信を待って処理.
-			std::list<RssReadRequest*>::iterator subit;
-			for( subit=subreqlist.begin(); subit!=subreqlist.end(); subit++ ){
-				WaitForSingleObject( (*subit)->hThread, INFINITE );
+			for( int k=0; k<SIMULTANEOUS_HTTP; k++ ){
+				if( subreqlist[k].hThread==0 ) continue;
+				WaitForSingleObject( subreqlist[k].hThread, INFINITE );
 
-				tXML xml( (*subit)->data, (*subit)->datalen );
+				xml = new tXML( subreqlist[k].data, subreqlist[k].datalen );
 				xmlNodePtr channel;
-				channel = xml.FindFirstNodeFromRoot("channel");
-
+				channel = xml->FindFirstNodeFromRoot("channel");
 				::AddRSSProgram( rss_list, channel );
+				delete xml;
 
-				CloseHandle( (*subit)->hThread );
-				free( (*subit)->data );
-				delete (*subit);
+				CloseHandle( subreqlist[k].hThread );
+				free( subreqlist[k].data );
 			}
+			delete [] subreqlist;
 		}
-		CloseHandle( (*it)->hThread );
-		free( (*it)->data );
-		delete (*it);
 	}
 	nico->setRSSProgram( rss_list );
-	_endthreadex(0);
-	return 0;
+
+	delete [] reqlist;
 }
 
 
@@ -683,12 +680,10 @@ std::string NicoNamaAlert::getTicket( const char*xmltext, int len )
 // 全部のRSSを取ってくるのはなかなか時間かかる.
 int NicoNamaAlert::GetAllRSS()
 {
-	HANDLE thread;
-	thread = (HANDLE)_beginthreadex( NULL, 0, thNicoNamaRetriveAllRSS, this, 0, NULL );
-	WaitForSingleObject( thread, INFINITE );
-	CloseHandle( thread );
+	wrapper_retrieve_rss_for_destructor( this );
 	return 0;
 }
+
 
 /** 接続時の参加コミュ放送中番組の通知用.
  * 接続時の1回だけ呼ばれる.
@@ -751,6 +746,7 @@ HANDLE NicoNamaAlert::StartThread()
 // WM_TIMERによって実行.
 int NicoNamaAlert::GetAllRSSAndUpdate()
 {
+	dprintf( L"RSS Update...\n" );
 	_beginthread( thNicoNamaAlertGetRSSAndUpdate, 0, this );
 	return 0;
 }
@@ -975,10 +971,10 @@ int NicoNamaAlert::NotifyKeywordMatch()
 			if( (*i)==(*it).second.guid ) exist = true;
 		}
 		if( !exist ){
-			(*i) = "";	// 削除するものマーキング.
+			(*i) = "X";	// 削除するものマーキング.
 		}
 	}
-	m_announcedlist.remove( "" );
+	m_announcedlist.remove( "X" );
 	return 0;
 }
 
@@ -994,5 +990,5 @@ NicoNamaAlert::NicoNamaAlert( HINSTANCE hinst, HWND hwnd )
 
 NicoNamaAlert::~NicoNamaAlert()
 {
-	m_rss_program.clear();
+	m_socket.close();
 }

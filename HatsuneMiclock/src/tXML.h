@@ -7,6 +7,7 @@
 
 
 class tXML {
+	// ƒƒ‚ƒŠƒŠ[ƒN‚Í‘åä•v.
 	xmlDocPtr		m_xmldoc;
 	xmlNodePtr		m_root;
 

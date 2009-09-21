@@ -128,6 +128,9 @@ void CheckCommandLineOption()
  */
 void InitMikuClock()
 {
+#ifdef DEBUG
+	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF|_CRTDBG_LEAK_CHECK_DF );
+#endif
 	srand( GetTickCount() );
 
 	// read some parameters from resource.
@@ -1193,6 +1196,7 @@ INT_PTR CALLBACK DlgSettingProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
     return TRUE;
 }
 
+
 /** ニコ生のコメントサーバに接続する.
  */
 void NicoNamaLogin( HWND hWnd )
@@ -1244,9 +1248,24 @@ void NicoNamaLogin( HWND hWnd )
 		wstrtostr( g_config.nico_matchkeyword, str );
 		g_miku.nico_alert->setMatchKeyword( str );
 		g_miku.nico_alert->SetRandomPickup( g_miku.cmdline.find( L"/randompickup", 0 )!=std::wstring::npos?true:false );
-		g_miku.nico_alert->StartThread();
 		SetTaskTrayBalloonMessage( GetStringFromResource(IDS_NICO_CONNECTED) );
 		dprintf( L"Logged in to Niconama.\n" );
+
+#if 0
+#ifdef DEBUG
+		_CrtMemState s1,s2,s3;
+		_CrtMemCheckpoint( &s1 );
+#endif
+		g_miku.nico_alert->GetAllRSS();
+#ifdef DEBUG
+		_CrtMemCheckpoint( &s2 );
+		if ( _CrtMemDifference( &s3, &s1, &s2) ){
+			_CrtMemDumpStatistics( &s3 );
+		}
+#endif
+#endif
+
+		g_miku.nico_alert->StartThread();
 	}else{
 		SAFE_DELETE( g_miku.nico_alert );
 
@@ -1587,6 +1606,61 @@ bool CheckExistWindow()
 	return false;
 }
 
+class testclass {
+public:
+	testclass(){ dprintf(L"testclass construct\n"); }
+	~testclass(){ dprintf(L"testclass destruct\n"); }
+};
+class testclass2 {
+public:
+	testclass2(){ dprintf(L"testclass2 construct\n"); }
+	~testclass2(){ dprintf(L"testclass2 destruct\n"); }
+};
+
+#include "tXML.h"
+static void test_func()
+{
+	testclass2 tttt;
+
+	tXML *xml;
+	char*testdata = "<channel>aaa</channel>";
+	xml = new tXML( testdata, strlen(testdata) );
+	delete xml;
+}
+
+static unsigned WINAPI thread_test(LPVOID v)
+{
+	testclass ttttt;
+
+	test_func();
+
+	_endthreadex(0);
+	return 0;
+}
+
+
+void test()
+{
+
+#ifdef DEBUG
+	_CrtMemState s1,s2,s3;
+	_CrtMemCheckpoint( &s1 );
+#endif
+
+	HANDLE thread;
+	thread = (HANDLE)_beginthreadex( NULL, 0, thread_test, NULL, 0, NULL );
+	WaitForSingleObject( thread, INFINITE );
+	CloseHandle( thread );
+
+#ifdef DEBUG
+	_CrtMemCheckpoint( &s2 );
+	if ( _CrtMemDifference( &s3, &s1, &s2) ){
+		_CrtMemDumpStatistics( &s3 );
+	}
+#endif
+	return;
+}
+
 
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
@@ -1595,6 +1669,8 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	InitMikuClock();
 	g_miku.cmdline = lpCmdLine;
 	CheckCommandLineOption();
+
+	test();
 
 	LoadMikuImage();
     UpdateMikuClock();
