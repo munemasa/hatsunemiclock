@@ -455,22 +455,6 @@ void DrawMiku(HDC hdc)
 	TextOut(hdc, g_miku.fx, g_miku.fy, timestr, wcslen(timestr) );
 }
 
-/** iTunesを探して接続する.
- * 時刻更新処理と一緒に呼ばれている.
- * @param hwnd iTunesEventを受けとるウィンドウ
- */
-void FindITunes( HWND hwnd )
-{
-	if( g_miku.noiTunes ) return;
-
-	if( g_miku.iTunes==NULL && FindITunes() ){
-        // 終了中のiTunesを見つけないようにテキトーな手段で弾く.
-		if( GetTickCount() - g_miku.iTunesEndTime < 10*1000 ) return;
-		CreateITunesCOM( &g_miku.iTunes, hwnd );
-		ConnectITunesEvent( g_miku.iTunes );
-		SetWindowTitleToMusicName( hwnd );
-	}
-}
 
 
 /** 時刻ワークの更新.
@@ -559,6 +543,23 @@ void CheckMikuSpeak(HWND hwnd)
         if( !g_miku.inSpeak ){
 			SetEvent( g_miku.sayevent );
         }
+	}
+}
+
+/** iTunesを探して接続する.
+ * 時刻更新処理と一緒に呼ばれている.
+ * @param hwnd iTunesEventを受けとるウィンドウ
+ */
+void FindITunes( HWND hwnd )
+{
+	if( g_miku.noiTunes ) return;
+
+	if( g_miku.iTunes==NULL && FindITunes() ){
+        // 終了中のiTunesを見つけないようにテキトーな手段で弾く.
+		if( GetTickCount() - g_miku.iTunesEndTime < 10*1000 ) return;
+		CreateITunesCOM( &g_miku.iTunes, hwnd );
+		ConnectITunesEvent( g_miku.iTunes );
+		SetWindowTitleToMusicName( hwnd );
 	}
 }
 
@@ -857,89 +858,6 @@ void CreateNicoNamaNotify( NicoNamaProgram*program )
 	notifywin->Show( program->playsound, program->posx, program->posy );
 }
 
-/** ニコ生アラートからの通知処理.
- */
-LRESULT OnNicoNamaNotify( HWND hwnd, WPARAM wparam, LPARAM lparam )
-{
-	switch( wparam ){
-	case NNA_REQUEST_CREATEWINDOW:
-		CreateNicoNamaNotify( (NicoNamaProgram*)lparam );
-		break;
-
-	case NNA_CLOSED_NOTIFYWINDOW:
-		if( g_miku.nico_alert ) g_miku.nico_alert->ShowNextNoticeWindow();
-		break;
-
-	case NNA_UPDATE_RSS:
-		g_miku.nico_listwin->SetBoadcastingList( g_miku.nico_alert->getRSSProgram() );
-		break;
-
-	default:
-		break;
-	}
-	return 0;
-}
-
-/** iTunesイベントの処理.
- */
-LRESULT OnITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
-{
-    switch( wparam ){
-    case ITEventDatabaseChanged:
-		dprintf( L"ITEventDatabaseChanged\n" );
-        break;
-
-    case ITEventPlayerPlay:
-		dprintf( L"ITEventPlayerPlay\n" );
-        SetWindowTitleToMusicName( hwnd );
-        break;
-
-    case ITEventPlayerStop:
-		dprintf( L"ITEventPlayerStop\n" );
-        SetWindowText( hwnd, APP_TITLE );
-        UpdateToolTipHelp(L"");
-        break;
-
-    case ITEventPlayerPlayingTrackChanged:
-		dprintf( L"ITEventPlayerPlayingTrackChanged\n" );
-        break;
-
-	case ITEventUserInterfaceEnabled:
-		dprintf( L"ITEventUserInterfaceEnabled\n" );
-		break;
-
-    case ITEventCOMCallsDisabled:
-        g_miku.iTunesEndTime = GetTickCount();
-
-        dprintf( L"ITEventCOMCallsDisabled\n" );
-        SetWindowText( hwnd, APP_TITLE );
-        UpdateToolTipHelp(L"");
-
-        DisconnectITunesEvent();
-		SAFE_RELEASE( g_miku.iTunes );
-        break;
-
-    case ITEventCOMCallsEnabled:
-        dprintf( L"ITEventCOMCallsEnabled\n" );
-        break;
-
-    case ITEventQuitting:
-		dprintf( L"ITEventQuitting\n" );
-        break;
-
-    case ITEventAboutToPromptUserToQuit:
-		dprintf( L"ITEventAboutToPromptUserToQuit\n" );
-        break;
-
-    case ITEventSoundVolumeChanged:
-		dprintf( L"ITEventSoundVolumeChanged\n" );
-        break;
-
-    default:
-        break;
-    }
-	return 0;
-}
 
 /** 設定ダイアログに現状を反映させる.
  * @param hwnd ダイアログのウィンドウハンドル
@@ -1274,6 +1192,90 @@ void NicoNamaLogin( HWND hWnd )
 		std::wstring cap  = GetStringFromResource(IDS_ERR_CONNECT_FAILED_CAPTION);
 		MessageBox( hWnd, text.c_str(), cap.c_str(), MB_OK|MB_ICONEXCLAMATION );
 	}
+}
+
+/** ニコ生アラートからの通知処理.
+ */
+LRESULT OnNicoNamaNotify( HWND hwnd, WPARAM wparam, LPARAM lparam )
+{
+	switch( wparam ){
+	case NNA_REQUEST_CREATEWINDOW:
+		CreateNicoNamaNotify( (NicoNamaProgram*)lparam );
+		break;
+
+	case NNA_CLOSED_NOTIFYWINDOW:
+		if( g_miku.nico_alert ) g_miku.nico_alert->ShowNextNoticeWindow();
+		break;
+
+	case NNA_UPDATE_RSS:
+		g_miku.nico_listwin->SetBoadcastingList( g_miku.nico_alert->getRSSProgram() );
+		break;
+
+	default:
+		break;
+	}
+	return 0;
+}
+
+/** iTunesイベントの処理.
+ */
+LRESULT OnITunesEvent( HWND hwnd, WPARAM wparam, LPARAM lparam )
+{
+    switch( wparam ){
+    case ITEventDatabaseChanged:
+		dprintf( L"ITEventDatabaseChanged\n" );
+        break;
+
+    case ITEventPlayerPlay:
+		dprintf( L"ITEventPlayerPlay\n" );
+        SetWindowTitleToMusicName( hwnd );
+        break;
+
+    case ITEventPlayerStop:
+		dprintf( L"ITEventPlayerStop\n" );
+        SetWindowText( hwnd, APP_TITLE );
+        UpdateToolTipHelp(L"");
+        break;
+
+    case ITEventPlayerPlayingTrackChanged:
+		dprintf( L"ITEventPlayerPlayingTrackChanged\n" );
+        break;
+
+	case ITEventUserInterfaceEnabled:
+		dprintf( L"ITEventUserInterfaceEnabled\n" );
+		break;
+
+    case ITEventCOMCallsDisabled:
+        g_miku.iTunesEndTime = GetTickCount();
+
+        dprintf( L"ITEventCOMCallsDisabled\n" );
+        SetWindowText( hwnd, APP_TITLE );
+        UpdateToolTipHelp(L"");
+
+        DisconnectITunesEvent();
+		SAFE_RELEASE( g_miku.iTunes );
+        break;
+
+    case ITEventCOMCallsEnabled:
+        dprintf( L"ITEventCOMCallsEnabled\n" );
+        break;
+
+    case ITEventQuitting:
+		dprintf( L"ITEventQuitting\n" );
+        break;
+
+    case ITEventAboutToPromptUserToQuit:
+		dprintf( L"ITEventAboutToPromptUserToQuit\n" );
+        break;
+
+    case ITEventSoundVolumeChanged:
+		dprintf( L"ITEventSoundVolumeChanged\n" );
+        break;
+
+    default:
+        break;
+    }
+	return 0;
 }
 
 LRESULT OnContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
@@ -1624,23 +1626,6 @@ void test()
 }
 #endif
 
-int YourAllocHook( int allocType, void *userData, size_t size, int blockType, long requestNumber, const unsigned char *filename, int lineNumber)
-{
-	if( size==sizeof(char*) ){
-		switch( allocType ){
-		case _HOOK_ALLOC:
-			dprintf(L"%p,%d size alloc.\n",userData, size);
-			break;
-		case _HOOK_FREE:
-			dprintf(L"%p,%d size free.\n",userData, size);
-			break;
-		case _HOOK_REALLOC:
-			dprintf(L"%p,%d size realloc.\n",userData, size);
-			break;
-		}
-	}
-	return TRUE;
-}
 
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
@@ -1672,10 +1657,6 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	if( g_config.nico_autologin ){
 		NicoNamaLogin( g_miku.pWindow->getWindowHandle() );
 	}
-
-#ifdef DEBUG
-	//test();
-#endif
 
 	// Main message loop
     MSG msg = {0};
