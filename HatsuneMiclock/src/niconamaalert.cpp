@@ -108,7 +108,7 @@ static void __cdecl thNicoNamaAlertGetRSSAndUpdate(LPVOID v)
 }
 
 
-static void ProcessNotify( NicoNamaAlert*nico, std::wstring& str )
+void NicoNamaAlert::ProcessNotify( std::wstring& str )
 {
 	// 放送開始したコミュを調べますよ.
 	// [放送ID],[チャンネル＆コミュニティID],[放送主のユーザーID]
@@ -118,7 +118,9 @@ static void ProcessNotify( NicoNamaAlert*nico, std::wstring& str )
 
 	// <chat>ココ</chat>を取り出して , で分割.
 	xmlNodePtr root = xml.getRootNode();
-	if( !root || !root->children || !root->children->content ) return;
+	if( !root || !root->children || !root->children->content ){
+		return;
+	}
 
 	std::vector<std::wstring> data;
 	std::wstring wtmp;
@@ -127,8 +129,8 @@ static void ProcessNotify( NicoNamaAlert*nico, std::wstring& str )
 	data = split( wtmp, std::wstring(L",") );
 
 	int p = (float)rand() / RAND_MAX * 100;
-	if( !nico->isRandomPickup() ) p = 10000;
-	bool ispart = nico->isParticipant( data.at(1) );
+	if( !isRandomPickup() ) p = 10000;
+	bool ispart = isParticipant( data.at(1) );
 	// ランダムピックアップは 5% 固定で.
 	if( p<5 || ispart ){
 		char*d = xml.FindAttribute( xml.getRootNode(), "date" );
@@ -144,21 +146,25 @@ static void ProcessNotify( NicoNamaAlert*nico, std::wstring& str )
 		program.start		  = starttime;
 		program.isparticipant = ispart;
 		program.playsound	  = ispart;
-		nico->AddNoticeQueue( program );
+		AddNoticeQueue( program );
 	}
+	return;
 }
 
-static void DoReceive( NicoNamaAlert*nico )
+void NicoNamaAlert::DoReceive()
 {
 	std::wstring str;
 	while(1){
 		// あとはずっと受信待機.
 		int r;
-		r = nico->Receive( str );
+		r = Receive( str );
 		if( r<=0 ) break;
 		if( str.find(L"<chat",0)==std::wstring::npos ) continue;
 		//dprintf( L"NNA:%s\n", str.c_str() );
-		ProcessNotify( nico, str );
+
+		m_xml_cs.enter();
+		ProcessNotify( str );
+		m_xml_cs.leave();
 	}
 }
 
@@ -188,7 +194,7 @@ static unsigned __stdcall thNicoNamaAlertReceiver(LPVOID v)
 	// 番組リストを更新させる.
 	SendMessage( nico->getParentHWND(), WM_NNA_NOTIFY, NNA_UPDATE_RSS, 0 );
 
-	DoReceive( nico );
+	nico->DoReceive();
 
 	dprintf( L"NicoNamaAlert thread ended.\n" );
 	_endthreadex(0);
@@ -221,12 +227,11 @@ public:
  *
  * 関数のエピローグでデストラクタ呼んでもらうためのラッパー関数。
  */
-static void wrapper_retrieve_rss_for_destructor( LPVOID v )
+void NicoNamaAlert::wrapper_retrieve_rss_for_destructor()
 {
 	nico_test nnnnn;
-	NicoNamaAlert *nico = (NicoNamaAlert*)v;
 	std::map<std::string,NicoNamaRSSProgram> rss_list;
-	RssReadRequest *reqlist = new RssReadRequest[ NICONAMA_MAX_RSS ];
+	RssReadRequest reqlist[ NICONAMA_MAX_RSS ];
 	tXML *xml = NULL;
 
     // 最初の1ページ目を同時にアクセスするくらいはいいよね.
@@ -248,6 +253,7 @@ static void wrapper_retrieve_rss_for_destructor( LPVOID v )
 
 		int total_num = 0;
 		int index = reqlist[i].index;
+
 		xml = new tXML( reqlist[i].data, reqlist[i].datalen );
 		xmlNodePtr channel;
 		channel = xml->FindFirstNodeFromRoot("channel");
@@ -262,7 +268,7 @@ static void wrapper_retrieve_rss_for_destructor( LPVOID v )
 		for( int cnt=2; cnt<=maxpages; ){
 			// (HTTP/1.1なので)2ページ同時に要求.
 #define SIMULTANEOUS_HTTP		(2)
-			RssReadRequest *subreqlist = new RssReadRequest[ SIMULTANEOUS_HTTP ];
+			RssReadRequest subreqlist[ SIMULTANEOUS_HTTP ];
 
 			for(int j=0; j<SIMULTANEOUS_HTTP && cnt<=maxpages; cnt++,j++){
 				wchar_t tmp[128];
@@ -289,12 +295,12 @@ static void wrapper_retrieve_rss_for_destructor( LPVOID v )
 				CloseHandle( subreqlist[k].hThread );
 				free( subreqlist[k].data );
 			}
-			delete [] subreqlist;
 		}
 	}
-	nico->setRSSProgram( rss_list );
-
-	delete [] reqlist;
+	setRSSProgram( rss_list );
+	m_xml_cs.enter();
+	tXML::cleanup();
+	m_xml_cs.leave();
 }
 
 
@@ -691,9 +697,11 @@ std::string NicoNamaAlert::getTicket( const char*xmltext, int len )
 int NicoNamaAlert::GetAllRSS()
 {
 	static int cnt=0;
-	wrapper_retrieve_rss_for_destructor( this );
-	dprintf(L"* %d times to read RSS.\n",cnt);
+
+	wrapper_retrieve_rss_for_destructor();
+
 	cnt++;
+	dprintf(L"* %d times to read RSS.\n",cnt);
 	return 0;
 }
 
@@ -873,7 +881,10 @@ int NicoNamaAlert::Load()
 		std::string coname;
 		WCHAR *subkey = new WCHAR[len+1];
 		DWORD l = len+1;
-		if( RegEnumKeyEx( hkey, i, subkey, &l, NULL, NULL, NULL, NULL )==ERROR_NO_MORE_ITEMS ) break;
+		if( RegEnumKeyEx( hkey, i, subkey, &l, NULL, NULL, NULL, NULL )==ERROR_NO_MORE_ITEMS ){
+			delete [] subkey;
+			break;
+		}
 
 		std::wstring wstr = REG_COMMUNITY_SUBKEY L"\\";
 		wstr += subkey;	// create HKCU\Software\Miku39.jp\HatsuneMiclock\Communities\coXXXX

@@ -20,7 +20,6 @@ tXML::~tXML()
 	if( m_xmldoc ){
 		xmlFreeDoc( m_xmldoc );
 	}
-	xmlCleanupParser();
 }
 
 char* tXML::FindAttribute( xmlNode*node, const char*attrname )

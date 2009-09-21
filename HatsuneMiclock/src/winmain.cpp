@@ -14,6 +14,7 @@ using namespace Gdiplus;
 #include "tNotifyWindow.h"
 #include "tListWindow.h"
 #include "tPlaySound.h"
+#include "tXML.h"
 
 #include "niconamaalert.h"
 #include "udmessages.h"
@@ -1623,6 +1624,24 @@ void test()
 }
 #endif
 
+int YourAllocHook( int allocType, void *userData, size_t size, int blockType, long requestNumber, const unsigned char *filename, int lineNumber)
+{
+	if( size==sizeof(char*) ){
+		switch( allocType ){
+		case _HOOK_ALLOC:
+			dprintf(L"%p,%d size alloc.\n",userData, size);
+			break;
+		case _HOOK_FREE:
+			dprintf(L"%p,%d size free.\n",userData, size);
+			break;
+		case _HOOK_REALLOC:
+			dprintf(L"%p,%d size realloc.\n",userData, size);
+			break;
+		}
+	}
+	return TRUE;
+}
+
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
 	if( CheckExistWindow() ) return 0;
@@ -1678,7 +1697,9 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	SAFE_DELETE( g_miku.nico_alert );
     SAFE_DELETE( g_miku.pWindow );
 
-    ExitMikuClock();
+	tXML::cleanup();
+
+	ExitMikuClock();
 
 	OutputDebugString(L"----------------------------------------\n");
 	return (int)msg.wParam;

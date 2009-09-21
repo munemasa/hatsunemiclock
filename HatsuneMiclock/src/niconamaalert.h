@@ -173,6 +173,13 @@ private:
 	std::list<NicoNamaProgram>		m_recent_program;	///< 最近通知した番組.
 	bool	m_randompickup;
 
+    /* libxmlはスレッド単位にワークを作っていて
+     * RSS取得スレッドを作るたびにそのワークが増える一方。
+     * 定期的に掃除するため、xmlの処理をやっていないのを
+     * 見計らってやるためのクリティカルセクション。
+     */
+	tCriticalSection m_xml_cs;
+
 	// キーはコミュニティID
 	tCriticalSection m_rss_cs;
 	std::map<std::string,NicoNamaRSSProgram>	m_rss_program;	///< RSSにある全番組.
@@ -191,6 +198,8 @@ private:
 
 	bool isAlreadyAnnounced( std::string& request_id );
 
+	void ProcessNotify( std::wstring& str );
+
 public:
 	void setRSSProgram( std::map<std::string,NicoNamaRSSProgram>& src ){
 		m_rss_cs.enter();
@@ -201,6 +210,7 @@ public:
 		m_rss_cs.leave();
 	}
 	std::map<std::string,NicoNamaRSSProgram>& getRSSProgram(){
+		// せめて書き換え中は返らないように.
 		m_rss_cs.enter();
 		std::map<std::string,NicoNamaRSSProgram>& r = m_rss_program;
 		m_rss_cs.leave();
@@ -226,6 +236,7 @@ public:
 	int ConnectCommentServer();
 	int KeepAlive();
 	int Receive( std::wstring &str );
+	void DoReceive();
 
 	bool isParticipant( std::wstring&communityid );
 	int ShowNicoNamaNotice( NicoNamaProgram &program );
@@ -234,6 +245,7 @@ public:
 
 	HANDLE StartThread();
 
+	void wrapper_retrieve_rss_for_destructor();
 	int GetAllRSSAndUpdate();
 	int GetAllRSS();
 	int NotifyNowBroadcasting();

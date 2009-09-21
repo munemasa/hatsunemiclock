@@ -15,6 +15,8 @@ public:
 	tXML( const char*xml, int len, bool html=false );
 	~tXML();
 
+	static void cleanup(){ xmlCleanupParser(); }
+
 	static xmlNode* FindFirstNode( xmlNode*node, const char*nodename );
 	static char* FindFirstTextNode( xmlNode*node, const char*nodename );
 	static char* FindAttribute( xmlNode*node, const char*attrname );
