@@ -16,6 +16,8 @@ public:
 };
 
 
+void WriteUsedMemorySize();
+
 HWND myCreateWindowEx( DWORD dwExStyle, WCHAR*classname, WCHAR*caption, DWORD dwStyle, int x, int y, int w, int h, HWND parent, BOOL havemenu );
 
 BOOL Is_WinXP_SP2_or_Later();

@@ -9,7 +9,11 @@
 
 #include "debug.h"
 
+//#define USE_TOOLTIP
+
+
 static volatile LONG g_numofwin = 0;
+
 
 enum {
 	IDS_THUMB = 1000,
@@ -175,6 +179,7 @@ void tNotifyWindow::CreateToolTip()
 
 void tNotifyWindow::SetToolTip( const WCHAR*str )
 {
+#ifdef USE_TOOLTIP
     TOOLINFO ti;
 	std::wstring s;
     /* Vistaだと最後の/以降が表示されないのでダミー文字列を付加しておく.
@@ -190,6 +195,7 @@ void tNotifyWindow::SetToolTip( const WCHAR*str )
 	ti.lpszText = (LPWSTR)s.c_str();
     ti.uId = (UINT_PTR)m_hwnd;
     SendMessage( (HWND)m_tooltip, (UINT)TTM_UPDATETIPTEXT, (WPARAM)0, (LPARAM)&ti );
+#endif
 }
 
 
@@ -328,7 +334,9 @@ tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
 	}
 
 	SetWindowLongPtr( m_hwnd, GWLP_USERDATA, (LONG_PTR)this );
+#ifdef USE_TOOLTIP
 	CreateToolTip();
+#endif
 }
 
 tNotifyWindow::~tNotifyWindow()
@@ -339,7 +347,9 @@ tNotifyWindow::~tNotifyWindow()
 	DestroyWindow( m_title );
 	DestroyWindow( m_desc );
 	DestroyWindow( m_thumb );
+#ifdef USE_TOOLTIP
 	DestroyWindow( m_tooltip );
+#endif
 	DestroyWindow( m_hwnd );
 	DeleteObject( m_hBitmap );
 	SAFE_DELETE( m_bitmap );

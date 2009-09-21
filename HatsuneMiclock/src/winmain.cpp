@@ -1453,6 +1453,7 @@ LRESULT OnTimer( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		InvalidateRect( hWnd, NULL, TRUE );
 		CheckMikuSpeak( hWnd );
 		FindITunes( hWnd );
+		WriteUsedMemorySize();
 		break;
 
 	case TIMER_ID_REFRESH_TIPHELP:
@@ -1606,61 +1607,21 @@ bool CheckExistWindow()
 	return false;
 }
 
-class testclass {
-public:
-	testclass(){ dprintf(L"testclass construct\n"); }
-	~testclass(){ dprintf(L"testclass destruct\n"); }
-};
-class testclass2 {
-public:
-	testclass2(){ dprintf(L"testclass2 construct\n"); }
-	~testclass2(){ dprintf(L"testclass2 destruct\n"); }
-};
-
-#include "tXML.h"
-static void test_func()
-{
-	testclass2 tttt;
-
-	tXML *xml;
-	char*testdata = "<channel>aaa</channel>";
-	xml = new tXML( testdata, strlen(testdata) );
-	delete xml;
-}
-
-static unsigned WINAPI thread_test(LPVOID v)
-{
-	testclass ttttt;
-
-	test_func();
-
-	_endthreadex(0);
-	return 0;
-}
-
-
+#ifdef DEBUG
 void test()
 {
 
-#ifdef DEBUG
 	_CrtMemState s1,s2,s3;
 	_CrtMemCheckpoint( &s1 );
-#endif
 
-	HANDLE thread;
-	thread = (HANDLE)_beginthreadex( NULL, 0, thread_test, NULL, 0, NULL );
-	WaitForSingleObject( thread, INFINITE );
-	CloseHandle( thread );
 
-#ifdef DEBUG
 	_CrtMemCheckpoint( &s2 );
 	if ( _CrtMemDifference( &s3, &s1, &s2) ){
 		_CrtMemDumpStatistics( &s3 );
 	}
-#endif
 	return;
 }
-
+#endif
 
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
@@ -1669,8 +1630,6 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	InitMikuClock();
 	g_miku.cmdline = lpCmdLine;
 	CheckCommandLineOption();
-
-	test();
 
 	LoadMikuImage();
     UpdateMikuClock();
@@ -1688,13 +1647,16 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 
 	g_miku.nico_listwin = new tListWindow( hInstance, g_miku.pWindow->getWindowHandle() );
 	MoveWindow( g_miku.nico_listwin->getWindowHandle(), g_config.nico_listwin_x, g_config.nico_listwin_y, g_config.nico_listwin_w, g_config.nico_listwin_h, TRUE );
-	//g_miku.nico_listwin->Show();
 
 	RegisterTaskTrayIcon();
 
 	if( g_config.nico_autologin ){
 		NicoNamaLogin( g_miku.pWindow->getWindowHandle() );
 	}
+
+#ifdef DEBUG
+	//test();
+#endif
 
 	// Main message loop
     MSG msg = {0};
@@ -1717,5 +1679,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
     SAFE_DELETE( g_miku.pWindow );
 
     ExitMikuClock();
+
+	OutputDebugString(L"----------------------------------------\n");
 	return (int)msg.wParam;
 }

@@ -93,12 +93,12 @@ int AddRSSProgram( std::map<std::string,NicoNamaRSSProgram>& rss, xmlNodePtr cha
  * _beginthread()によって起動されて、RSSを読んで親ウィンドウに対してDL完了通知を投げる.
  * WM_TIMERによって親ウィンドウから呼ばれている.
  */
-static void thNicoNamaAlertGetRSSAndUpdate(LPVOID v)
+static void __cdecl thNicoNamaAlertGetRSSAndUpdate(LPVOID v)
 {
 	NicoNamaAlert *nico = (NicoNamaAlert*)v;
 	dprintf( L"Retrieving RSS...\n" );
 	nico->GetAllRSS();
-	dprintf( L"done.\n" );
+	dprintf( L"done. and update.\n" );
 	// 番組リストを更新させる.
 	SendMessage( nico->getParentHWND(), WM_NNA_NOTIFY, NNA_UPDATE_RSS, 0 );
 
@@ -108,13 +108,66 @@ static void thNicoNamaAlertGetRSSAndUpdate(LPVOID v)
 }
 
 
-/** ニコ生アラート受信スレッド.
- *
- * @note CRT使うので _beginthread() で開始. 呼び出し規則は__cdecl
- */
-static void thNicoNamaAlertReceiver(LPVOID v)
+static void ProcessNotify( NicoNamaAlert*nico, std::wstring& str )
+{
+	// 放送開始したコミュを調べますよ.
+	// [放送ID],[チャンネル＆コミュニティID],[放送主のユーザーID]
+	std::string mbstr;
+	wstrtostr( str, mbstr );
+	tXML xml( mbstr.c_str(), mbstr.length() );
+
+	// <chat>ココ</chat>を取り出して , で分割.
+	xmlNodePtr root = xml.getRootNode();
+	if( !root || !root->children || !root->children->content ) return;
+
+	std::vector<std::wstring> data;
+	std::wstring wtmp;
+	std::string text = (char*)root->children->content;
+	strtowstr( text, wtmp );
+	data = split( wtmp, std::wstring(L",") );
+
+	int p = (float)rand() / RAND_MAX * 100;
+	if( !nico->isRandomPickup() ) p = 10000;
+	bool ispart = nico->isParticipant( data.at(1) );
+	// ランダムピックアップは 5% 固定で.
+	if( p<5 || ispart ){
+		char*d = xml.FindAttribute( xml.getRootNode(), "date" );
+		std::string datestr = d?d:"0";
+#ifdef _USE_32BIT_TIME_T
+		time_t starttime = atoi( datestr.c_str() );
+#else
+		time_t starttime = _atoi64( datestr.c_str() );
+#endif
+		dprintf( L"Community(%s)'s broadcasting is started.\n", data[1].c_str() );
+		NicoNamaProgram program;
+		GetBroadcastingInfo( data[0], program );    // data[0]は放送ID
+		program.start		  = starttime;
+		program.isparticipant = ispart;
+		program.playsound	  = ispart;
+		nico->AddNoticeQueue( program );
+	}
+}
+
+static void DoReceive( NicoNamaAlert*nico )
 {
 	std::wstring str;
+	while(1){
+		// あとはずっと受信待機.
+		int r;
+		r = nico->Receive( str );
+		if( r<=0 ) break;
+		if( str.find(L"<chat",0)==std::wstring::npos ) continue;
+		//dprintf( L"NNA:%s\n", str.c_str() );
+		ProcessNotify( nico, str );
+	}
+}
+
+/** ニコ生アラート受信スレッド.
+ *
+ * @note CRT使うので _beginthreadex() で開始. 呼び出し規則はstdcall
+ */
+static unsigned __stdcall thNicoNamaAlertReceiver(LPVOID v)
+{
 	NicoNamaAlert *nico = (NicoNamaAlert*)v;
 
 	// まず開始時にRSSを取ってきて、放送中のものを通知しよう.
@@ -135,59 +188,17 @@ static void thNicoNamaAlertReceiver(LPVOID v)
 	// 番組リストを更新させる.
 	SendMessage( nico->getParentHWND(), WM_NNA_NOTIFY, NNA_UPDATE_RSS, 0 );
 
-	while(1){
-		// あとはずっと受信待機.
-		int r;
-		r = nico->Receive( str );
-		if( r<=0 ) break;
-		if( str.find(L"<chat",0)==std::wstring::npos ) continue;
-		//dprintf( L"NNA:%s\n", str.c_str() );
+	DoReceive( nico );
 
-		// 放送開始したコミュを調べますよ.
-		// [放送ID],[チャンネル＆コミュニティID],[放送主のユーザーID]
-		std::string mbstr;
-		wstrtostr( str, mbstr );
-		tXML xml( mbstr.c_str(), mbstr.length() );
-
-		// <chat>ココ</chat>を取り出して , で分割.
-		xmlNodePtr root = xml.getRootNode();
-		if( !root || !root->children || !root->children->content ) continue;
-
-		std::vector<std::wstring> data;
-		std::wstring wtmp;
-		std::string text = (char*)root->children->content;
-		strtowstr( text, wtmp );
-		data = split( wtmp, std::wstring(L",") );
-
-		int p = (float)rand() / RAND_MAX * 100;
-		if( !nico->isRandomPickup() ) p = 10000;
-		bool ispart = nico->isParticipant( data.at(1) );
-		// ランダムピックアップは 5% 固定で.
-		if( p<5 || ispart ){
-			char*d = xml.FindAttribute( xml.getRootNode(), "date" );
-			std::string datestr = d?d:"0";
-#ifdef _USE_32BIT_TIME_T
-			time_t starttime = atoi( datestr.c_str() );
-#else
-			time_t starttime = _atoi64( datestr.c_str() );
-#endif
-			dprintf( L"Community(%s)'s broadcasting is started.\n", data[1].c_str() );
-			NicoNamaProgram program;
-			GetBroadcastingInfo( data[0], program );    // data[0]は放送ID
-			program.start		  = starttime;
-			program.isparticipant = ispart;
-			program.playsound	  = ispart;
-			nico->AddNoticeQueue( program );
-		}
-	}
 	dprintf( L"NicoNamaAlert thread ended.\n" );
-	_endthread();
+	_endthreadex(0);
+	return 0;
 }
 
 /** RSSを取ってくるだけ.
  *_beginthreadex()を使う. __stdcallで.
  */
-static unsigned WINAPI thRetrieveRSS(LPVOID v)
+static unsigned __stdcall thRetrieveRSS(LPVOID v)
 {
 	RssReadRequest *req = (RssReadRequest*)v;
 	tHttp *http = new tHttp;
@@ -208,7 +219,6 @@ public:
  * ウェイトなしで一気に取得してくるけど問題ないかな.
  * ニコ生アラート(βa)もノーウェイトでどんどん取ってるからいいだろう.
  *
- * この辺をメモリリークチェック。
  * 関数のエピローグでデストラクタ呼んでもらうためのラッパー関数。
  */
 static void wrapper_retrieve_rss_for_destructor( LPVOID v )
@@ -680,7 +690,10 @@ std::string NicoNamaAlert::getTicket( const char*xmltext, int len )
 // 全部のRSSを取ってくるのはなかなか時間かかる.
 int NicoNamaAlert::GetAllRSS()
 {
+	static int cnt=0;
 	wrapper_retrieve_rss_for_destructor( this );
+	dprintf(L"* %d times to read RSS.\n",cnt);
+	cnt++;
 	return 0;
 }
 
@@ -740,7 +753,11 @@ int NicoNamaAlert::NotifyNowBroadcasting()
 HANDLE NicoNamaAlert::StartThread()
 {
 	Load();
-	return (HANDLE)_beginthread( thNicoNamaAlertReceiver, 0, this );
+	m_thReceiver = (HANDLE)_beginthreadex( NULL, 0, thNicoNamaAlertReceiver, this, 0, NULL );
+	if( m_thReceiver==0 ){
+		dprintf(L"StartThread failed\n");
+	}
+	return m_thReceiver;
 }
 
 // WM_TIMERによって実行.
@@ -980,6 +997,7 @@ int NicoNamaAlert::NotifyKeywordMatch()
 
 NicoNamaAlert::NicoNamaAlert( HINSTANCE hinst, HWND hwnd )
 {
+	m_thReceiver = 0;
 	m_matchkeyword = "";
 	m_announcedlist.clear();
 	m_hinst = hinst;
@@ -991,4 +1009,8 @@ NicoNamaAlert::NicoNamaAlert( HINSTANCE hinst, HWND hwnd )
 NicoNamaAlert::~NicoNamaAlert()
 {
 	m_socket.close();
+	if( m_thReceiver ){
+		WaitForSingleObject( m_thReceiver, INFINITE );
+		CloseHandle( m_thReceiver );
+	}
 }

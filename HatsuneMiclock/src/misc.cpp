@@ -2,6 +2,14 @@
 #include "misc.h"
 #include "debug.h"
 
+
+void WriteUsedMemorySize()
+{
+#ifdef DEBUG
+
+#endif
+}
+
 // クライアント領域がw,hになるようにウィンドウを作成する...はずだけどサイズ合わないな.
 HWND myCreateWindowEx( DWORD dwExStyle, WCHAR*classname, WCHAR*caption, DWORD dwStyle, int x, int y, int w, int h, HWND parent, BOOL havemenu )
 {

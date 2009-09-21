@@ -16,7 +16,7 @@
 #define NICO_LIVE_URL		L"http://live.nicovideo.jp/watch/"
 
 #define NICO_MAX_RECENT_PROGRAM		(10)		// ƒAƒ‰[ƒg—š—ğ‚ÌÅ‘å”.
-#define NICONAMA_RSS_GET_INTERVAL	(10)		// minutes.
+#define NICONAMA_RSS_GET_INTERVAL	(3)		// minutes.
 
 #define REG_COMMUNITY_SUBKEY	REG_SUBKEY L"\\Communities"
 

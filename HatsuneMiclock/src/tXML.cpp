@@ -3,6 +3,7 @@
 #include "libxml/HTMLtree.h"
 #include "libxml/HTMLparser.h"
 
+#include "debug.h"
 
 tXML::tXML( const char*xml, int len, bool html )
 {

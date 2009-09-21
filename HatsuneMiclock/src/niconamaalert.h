@@ -155,6 +155,8 @@ public:
 private:
 	HINSTANCE		m_hinst;
 	HWND			m_parenthwnd;
+	HANDLE			m_thReceiver;		///< 受信スレッドのハンドル.
+
 	int				m_displaytype;		///< アラートの表示方法.
 
 	std::string		m_ticket;			///< 第一認証で取得するチケット.

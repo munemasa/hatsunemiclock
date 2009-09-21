@@ -8,7 +8,7 @@
 
 static bool isplayed = false;
 
-static void thPlaySound(LPVOID v)
+static void wrapper_for_destructor(LPVOID v)
 {
 	wchar_t *file = (wchar_t*)v;
 	MCIERROR err;
@@ -49,6 +49,11 @@ static void thPlaySound(LPVOID v)
 	}
 
 	free(v);
+}
+
+static void __cdecl thPlaySound(LPVOID v)
+{
+	wrapper_for_destructor(v);
 	_endthread();
 }
 

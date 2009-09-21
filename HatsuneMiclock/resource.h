@@ -134,6 +134,7 @@
 #define ID_BTN_FILTERRELEASE            1047
 #define IDC_COMMUNITY_LIST              1063
 #define IDC_EDIT_NOTICE_KEYWORD         1067
+#define IDC_SYSLINK1                    1068
 #define ID_BTN_WHATTIMEISITNOW          40009
 #define ID_BTN_ABOUT                    40010
 #define ID_BTN_SETTING                  40011
@@ -161,7 +162,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        200
 #define _APS_NEXT_COMMAND_VALUE         40099
-#define _APS_NEXT_CONTROL_VALUE         1068
+#define _APS_NEXT_CONTROL_VALUE         1069
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
