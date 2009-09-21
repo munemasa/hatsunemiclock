@@ -161,8 +161,9 @@ BEGIN
         POPUP "ニコニコ生放送"
         BEGIN
             MENUITEM "サーバに接続...(C)",                ID_BTN_NOCOLOGIN
-            MENUITEM "現在の番組一覧",                     ID_BTN_BROADCASTING_LIST
+            MENUITEM "番組一覧(&L)",                    ID_BTN_BROADCASTING_LIST
         END
+        MENUITEM SEPARATOR
         MENUITEM "設定...(&S)",                   ID_BTN_SETTING
         MENUITEM "バージョン情報...(&A)",              ID_BTN_ABOUT
         MENUITEM SEPARATOR
@@ -227,7 +228,7 @@ BEGIN
     LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.8",IDC_STATIC,20,17,126,8
     LTEXT           "Programmed by あまの",IDC_STATIC,20,33,64,8
     LTEXT           "「初音ミク」はクリプトン・フューチャー・メディア株式会社の著作物です。\n(C) Crypton Future Media, Inc.",IDC_STATIC,20,77,185,19
-    CONTROL         "<a>http://miku39.jp/dists/software/miku/HatsuneMiclock.html</a>",IDC_SYSLINK1,
+    CONTROL         "<a href=""http://miku39.jp/dists/software/miku/HatsuneMiclock.html"">http://miku39.jp/dists/software/miku/HatsuneMiclock.html</a>",IDC_SYSLINK_WEBPAGE,
                     "SysLink",WS_TABSTOP,20,50,173,14
 END
 
@@ -300,6 +301,17 @@ BEGIN
     EDITTEXT        IDC_EDIT_NOTICE_KEYWORD,10,25,191,20,ES_AUTOHSCROLL
     PUSHBUTTON      "OK",IDOK,114,71,41,18
     PUSHBUTTON      "キャンセル",IDCANCEL,160,71,41,18
+END
+
+IDD_ABOUT_DIALOG_2000 DIALOGEX 0, 0, 199, 115
+STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "バージョン情報"
+FONT 9, "MS UI Gothic", 400, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDYES,78,82,41,20
+    LTEXT           "初音ミクロック (Hatsune Miclock) Version 0.8",IDC_STATIC,8,14,126,8
+    LTEXT           "Programmed by あまの",IDC_STATIC,8,30,64,8
+    LTEXT           "「初音ミク」はクリプトン・フューチャー・メディア株式会社の著作物です。\n(C) Crypton Future Media, Inc.",IDC_STATIC,8,52,185,19
 END
 
 
@@ -375,9 +387,10 @@ BEGIN
     IDS_ERR_CONNECT_FAILED  "コメントサーバーに接続できませんでした。"
     IDS_ERR_CONNECT_FAILED_CAPTION "接続の失敗"
     IDS_MENU_TRACKLIST      "トラックリスト"
-    IDS_MENU_NICO_RECENT    "最近通知した番組"
+    IDS_MENU_NICO_RECENT    "番組の通知履歴"
     IDS_NICO_CONNECTED      "サーバーに接続しました。"
     IDS_NICO_PROGRAM_LIST_CAPTION "番組一覧 -10分間隔で更新- "
+    IDS_MENU_NICO_COMMUNITY_PROGRAM "コミュニティの通知履歴"
 END
 
 #endif    // 日本語 resources

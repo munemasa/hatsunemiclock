@@ -366,9 +366,11 @@ void tNotifyWindow::Show( bool playsound, int posx, int posy )
 		m_playsound = playsound;
 	}
 	if( posx>=0 && posy>=0 ){
-		SetWindowPos( m_hwnd, HWND_TOP, posx, posy, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE);
+		SetWindowPos( m_hwnd, HWND_TOP, posx, posy, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOACTIVATE );
+	}else{
+		SetWindowPos( m_hwnd, HWND_TOP, posx, posy, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE );
 	}
-	ShowWindow( m_hwnd, SW_SHOW );
+	//ShowWindow( m_hwnd, SW_SHOW );
 	UpdateWindow( m_hwnd );
 }
 

@@ -543,29 +543,39 @@ void NicoNamaAlert::ShowNextNoticeWindow()
  */
 void NicoNamaAlert::AddNoticeQueue( NicoNamaProgram &program, bool nostack )
 {
+	bool b = false;
 	if( this->m_displaytype==this->NNA_BALLOON ){
 		// バルーンタイプのときは即時でいいや.
 		ShowNicoNamaNotice( program );
+		b = true;
 	}else{
-		dprintf( L"notify window queue %d.\n", m_program_queue.size() );
 		if( !nostack && FindWindow( T_NOTIFY_CLASS, NULL ) ){
 			// すでに通知ウィンドウがあるのでキューに貯めておこう.
 			dprintf( L"Already notify window...queueing.\n" );
 			if( program.isparticipant ){
 				// 参加コミュのものは先頭に突っ込む.
 				m_program_queue.push_front( program );
+				b = true;
 			}else if( m_program_queue.size() < 10 ){
 				// キューに貯められるのは10個までに制限.
 				m_program_queue.push_back( program );
+				b = true;
 			}
 		}else{
 			ShowNicoNamaNotice( program );
+			b = true;
 		}
 	}
 
-	m_recent_program.push_back( program );
+	if( b ){
+		if( program.isparticipant ) m_recent_commu_prog.push_back( program );
+		m_recent_program.push_back( program );
+	}
 	if( m_recent_program.size() > NICO_MAX_RECENT_PROGRAM ){
 		m_recent_program.pop_front();
+	}
+	if( m_recent_commu_prog.size() > NICO_MAX_RECENT_PROGRAM ){
+		m_recent_commu_prog.pop_front();
 	}
 }
 
@@ -742,6 +752,8 @@ int NicoNamaAlert::NotifyNowBroadcasting()
 			int httpret = http.request( wstr.c_str(), &prog.thumbnail_image, &prog.thumbnail_image_size );
 			dprintf( L"httpret=%d\n", httpret );
 			dprintf( L"thumbnail image size %d bytes.\n", prog.thumbnail_image_size );
+
+			//m_now_broadcasting[ prog.community ] = prog;
 
 			if( y<0 ){
 				prog.playsound = true;

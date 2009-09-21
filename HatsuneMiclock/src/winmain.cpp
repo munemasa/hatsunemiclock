@@ -37,6 +37,8 @@ using namespace Gdiplus;
 
 #define BUF_STRING_SIZE					(4096)	// 文字列バッファの最大文字列長(NUL文字込みで)
 #define ITUNES_TRACK_ID_BASE			(50000)	// メニュー項目のID(iTunesプレイリスト用)
+#define MENU_RECENT_COMMUNITY_ID_BASE	(52000) // 参加コミュの番組通知メニュー用ID
+
 #define MENU_TRACKLIST_INSERT_POSITION	(2)		// トラックリストメニューの挿入先.
 
 
@@ -164,8 +166,9 @@ void InitMikuClock()
 	// common control
 	INITCOMMONCONTROLSEX ic;
 	ic.dwSize = sizeof(INITCOMMONCONTROLSEX);
-	ic.dwICC = ICC_UPDOWN_CLASS | ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES;
+	ic.dwICC = ICC_UPDOWN_CLASS | ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES | ICC_LINK_CLASS;
 	InitCommonControlsEx(&ic);
+	//LinkWindow_RegisterClass();
 
 	WinsockInit();
 
@@ -601,16 +604,22 @@ long GetCurrentTrackPlaylistIndex( long *id )
 }
 
 /** ポップアップメニューを表示する.
+ * 40000～がリソースエディタで割り当てられて、
+ * 50000～51000をiTunesプレイリスト用に使用中。
+ * 52000～を参加コミュの通知履歴に使用。
+ * 1～N は最近通知した番組に使用。
  * @param hwnd 親ウィンドウ
  */
 LRESULT ShowPopupMenu(HWND hwnd)
 {
 	// メニューは同時に複数表示されないので、static型で確保しちゃおう.
-	static std::list<NicoNamaProgram> recentniconama;
+	static std::list<NicoNamaProgram> recentniconama;	// 最近通知した番組
+	static std::list<NicoNamaProgram> recentcommunity;	// 最近通知したコミュの番組
 
 	HMENU menu;
     HMENU submenu;
 	HMENU hRecentBroadcasting;	// ニコ生アラート通知履歴.
+	HMENU hRecentCommunity;
     POINT pt;
 	MENUITEMINFO iteminfo;
 	std::wstring menuitemname;
@@ -642,13 +651,39 @@ LRESULT ShowPopupMenu(HWND hwnd)
     }
     InsertMenuItem( submenu, MENU_TRACKLIST_INSERT_POSITION, TRUE, &iteminfo );
 
-	// 最近のニコ生放送リストを追加.
 	if( g_miku.nico_alert ){
-		recentniconama = g_miku.nico_alert->getRecentList();
-
-		hRecentBroadcasting = CreatePopupMenu();
 		std::list<NicoNamaProgram>::iterator it;
 		int i;
+
+		recentniconama = g_miku.nico_alert->getRecentList();
+		recentcommunity= g_miku.nico_alert->getRecentCommunityList();
+
+		// コミュの放送通知履歴を追加.
+		hRecentCommunity = CreatePopupMenu();
+		for( i=MENU_RECENT_COMMUNITY_ID_BASE,it=recentcommunity.begin(); it!=recentcommunity.end(); it++,i++){
+			std::wstring wstr;
+			iteminfo.fMask = MIIM_ID | MIIM_STRING | MIIM_DATA;
+			iteminfo.wID = i;
+			iteminfo.dwItemData = (ULONG_PTR)&(*it);	// NicoNamaProgramへのポインタ入れておこう.
+
+			struct tm * starttime = localtime( &(*it).start );
+			wchar_t timebuf[1024];
+			strtowstr( (*it).title, wstr );
+			wsprintf( timebuf, L" (%d:%02d)", starttime->tm_hour, starttime->tm_min );
+			wstr = wstr + timebuf;
+			iteminfo.dwTypeData = (LPWSTR)wstr.c_str();
+			iteminfo.cch = (UINT)wstr.length();
+			InsertMenuItem( hRecentCommunity, 0, TRUE, &iteminfo );
+		}
+		menuitemname = GetStringFromResource( IDS_MENU_NICO_COMMUNITY_PROGRAM );
+		iteminfo.fMask = MIIM_STRING | MIIM_SUBMENU;
+		iteminfo.hSubMenu = hRecentCommunity;
+		iteminfo.dwTypeData = (LPWSTR)menuitemname.c_str();
+		iteminfo.cch = (UINT)menuitemname.length();
+		InsertMenuItem( submenu, MENU_TRACKLIST_INSERT_POSITION+1, TRUE, &iteminfo );
+
+		// 最近の通知リストのメニュー項目を追加.
+		hRecentBroadcasting = CreatePopupMenu();
 		for( i=1,it=recentniconama.begin(); it!=recentniconama.end(); it++,i++){
 			std::wstring wstr;
 			iteminfo.fMask = MIIM_ID | MIIM_STRING | MIIM_DATA;
@@ -670,7 +705,10 @@ LRESULT ShowPopupMenu(HWND hwnd)
 		iteminfo.hSubMenu = hRecentBroadcasting;
 		iteminfo.dwTypeData = (LPWSTR)menuitemname.c_str();
 		iteminfo.cch = (UINT)menuitemname.length();
-		InsertMenuItem( submenu, MENU_TRACKLIST_INSERT_POSITION+1, TRUE, &iteminfo );
+		//InsertMenuItem( submenu, MENU_TRACKLIST_INSERT_POSITION+1, TRUE, &iteminfo );
+
+		HMENU nicomenu = GetSubMenu( submenu, 5 );
+		InsertMenuItem( nicomenu, 2, TRUE, &iteminfo );
 	}
 
 	GetCursorPos( &pt );
@@ -685,22 +723,26 @@ LRESULT ShowPopupMenu(HWND hwnd)
 	if(r){
 		PostMessage( hwnd, WM_COMMAND, r, 0 );
 	}
-	if( r>0 && r<=NICO_MAX_RECENT_PROGRAM ){
+	if( r>0 && r<=NICO_MAX_RECENT_PROGRAM || r>=MENU_RECENT_COMMUNITY_ID_BASE ){
 		/* recentniconamaに直接触ってもいいような気もするけど、
 		 * listだとインデックスから直に項目に飛べないから、
 		 * アイテムからデータ取ってこよう。
 		 */
 		iteminfo.cbSize = sizeof(iteminfo);
 		iteminfo.fMask = MIIM_DATA;
-		GetMenuItemInfo( hRecentBroadcasting, r, FALSE, &iteminfo );
+		if( r>=MENU_RECENT_COMMUNITY_ID_BASE ){
+			GetMenuItemInfo( hRecentCommunity, r, FALSE, &iteminfo );
+		}else{
+			GetMenuItemInfo( hRecentBroadcasting, r, FALSE, &iteminfo );
+		}
 		NicoNamaProgram *prog = (NicoNamaProgram*)iteminfo.dwItemData;
-		dprintf( L"Select %S(%S)\n", prog->title.c_str(), prog->request_id.c_str() );
+		dprintf( L"Select %S\n", prog->request_id.c_str() );
 
 		std::wstring url = NICO_LIVE_URL;
 		std::wstring tmp;
 		strtowstr( prog->request_id, tmp );
 		url += tmp;
-		ShellExecute(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+		OpenURL( url );
 	}
 
 	DestroyMenu( menu );
@@ -826,7 +868,7 @@ LRESULT iTunesPlayOrStop()
 /** ニコ生アラートを表示する.
  * @param program 放送についてのの情報(アラート表示中、保持する必要ないので即捨てて良し)
  */
-void CreateNicoNamaNotify( NicoNamaProgram*program )
+void CreateNicoNamaNotice( NicoNamaProgram*program )
 {
 	tNotifyWindow *notifywin = new tNotifyWindow( g_miku.hInst, g_miku.pWindow->getWindowHandle() );
 	dprintf( L"Create tNotifyWindow %p\n", notifywin );
@@ -1034,11 +1076,26 @@ INT_PTR CALLBACK DlgNicoIDPASSProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 	return TRUE;
 }
 
+// IDC_SYSLINK_WEBPAGE
 INT_PTR CALLBACK DlgAboutProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch(msg){
     case WM_INITDIALOG:
         return TRUE;
+
+	case WM_NOTIFY:{
+		int idCtrl = (int)wp;
+		LPNMHDR pnmh = (LPNMHDR)lp;
+		switch( pnmh->code ){
+		case NM_CLICK:{
+			NMLINK *link = (NMLINK*)lp;
+			OpenURL( link->item.szUrl );
+			break;}
+
+		default:
+			return FALSE;
+		}
+		break;}
 
     case WM_COMMAND:
         switch(LOWORD(wp)){
@@ -1200,7 +1257,7 @@ LRESULT OnNicoNamaNotify( HWND hwnd, WPARAM wparam, LPARAM lparam )
 {
 	switch( wparam ){
 	case NNA_REQUEST_CREATEWINDOW:
-		CreateNicoNamaNotify( (NicoNamaProgram*)lparam );
+		CreateNicoNamaNotice( (NicoNamaProgram*)lparam );
 		break;
 
 	case NNA_CLOSED_NOTIFYWINDOW:
@@ -1290,7 +1347,11 @@ LRESULT OnContextMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
         break;
 
     case ID_BTN_ABOUT:
-        DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_ABOUT_DIALOG), hWnd, DlgAboutProc );
+		if( Is_WinXP_SP2_or_Later() ){
+			DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_ABOUT_DIALOG), hWnd, DlgAboutProc );
+		}else{
+			DialogBox( g_miku.hInst, MAKEINTRESOURCE(IDD_ABOUT_DIALOG_2000), hWnd, DlgAboutProc );
+		}
         break;
 
     case ID_BTN_SETTING:

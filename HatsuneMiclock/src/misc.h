@@ -26,6 +26,7 @@ LSTATUS ReadRegistoryDW( HKEY hkey, WCHAR*entry, DWORD*data );
 LSTATUS ReadRegistorySTR( HKEY hkey, WCHAR*entry, std::wstring &str );
 
 void OpenURL( std::wstring &url );
+void OpenURL( WCHAR*url );
 
 
 #endif

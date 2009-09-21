@@ -162,15 +162,16 @@ private:
 	std::string		m_ticket;			///< 第一認証で取得するチケット.
 	std::string		m_userid;
 	std::string		m_userhash;
-	std::vector<std::wstring>	m_communities;	///< 参加コミュのIDリスト.
 
-	std::string		m_commentserver;	///< コメントサーバ.
+	std::string		m_commentserver;	///< コメントサーバのホスト名.
 	uint16_t		m_port;				///< コメントサーバのポート.
 	std::string		m_thread;			///< コメントサーバのスレッド.
 	tSocket			m_socket;			///< コメントサーバ接続ソケット.
 
-	std::list<NicoNamaProgram>		m_program_queue;	///< 通知キュー.
-	std::list<NicoNamaProgram>		m_recent_program;	///< 最近通知した番組.
+	std::vector<std::wstring>	m_communities;		///< 参加コミュのIDリスト.
+	std::list<NicoNamaProgram>	m_program_queue;	///< 通知キュー.
+	std::list<NicoNamaProgram>	m_recent_program;	///< 最近通知した番組(全体).
+	std::list<NicoNamaProgram>	m_recent_commu_prog;///< 最近通知した番組(参加コミュのみ).
 	bool	m_randompickup;
 
     /* libxmlはスレッド単位にワークを作っていて
@@ -183,7 +184,6 @@ private:
 	// キーはコミュニティID
 	tCriticalSection m_rss_cs;
 	std::map<std::string,NicoNamaRSSProgram>	m_rss_program;	///< RSSにある全番組.
-
 	std::map<std::string,NicoNamaNoticeType>	m_noticetype;	///< コミュごとの通知タイプ指定.
 	std::map<std::string,std::string>			m_community_name_cache;	///< コミュニティ名キャッシュ.
 
@@ -231,6 +231,7 @@ public:
 	std::wstring getCommunityName( std::wstring& commu_id );
 
 	inline std::list<NicoNamaProgram>& getRecentList(){ return m_recent_program; }
+	inline std::list<NicoNamaProgram>& getRecentCommunityList(){ return m_recent_commu_prog; }
 
 	int Auth( const char*mail, const char*password );
 	int ConnectCommentServer();

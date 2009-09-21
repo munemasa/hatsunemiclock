@@ -34,6 +34,16 @@ void OpenURL( std::wstring &url )
 	}
 }
 
+void OpenURL( WCHAR*url )
+{
+	HINSTANCE r = ShellExecute(NULL, NULL, url, NULL, NULL, SW_SHOWNORMAL);
+	if( (int)r<=32 ){
+		// Ž¸”s‚µ‚½‚Æ‚«‚Íexplorer‚Å.
+		dprintf( L"ShellExecute: %d\n", (int)r );
+		r = ShellExecute(NULL, L"open", L"explorer", url, NULL, SW_SHOWNORMAL );
+	}
+}
+
 
 BOOL Is_WinXP_SP2_or_Later()
 {

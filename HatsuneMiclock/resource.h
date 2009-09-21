@@ -20,6 +20,8 @@
 #define IDR_HOUR09                      111
 #define IDD_INPUT_KEYWORD               111
 #define IDR_HOUR10                      112
+#define IDD_PROPPAGE_SMALL              112
+#define IDD_ABOUT_DIALOG_2000           112
 #define IDR_HOUR11                      113
 #define IDR_HOUR12                      114
 #define IDR_HOUR13                      115
@@ -115,6 +117,7 @@
 #define IDS_MENU_NICO_RECENT            202
 #define IDS_NICO_CONNECTED              203
 #define IDS_NICO_PROGRAM_LIST_CAPTION   204
+#define IDS_MENU_NICO_COMMUNITY_PROGRAM 205
 #define IDC_CHK_TOPMOST                 1006
 #define IDC_GRP_DISPLAY                 1007
 #define IDC_CHK_AMPM                    1008
@@ -134,7 +137,7 @@
 #define ID_BTN_FILTERRELEASE            1047
 #define IDC_COMMUNITY_LIST              1063
 #define IDC_EDIT_NOTICE_KEYWORD         1067
-#define IDC_SYSLINK1                    1068
+#define IDC_SYSLINK_WEBPAGE             1068
 #define ID_BTN_WHATTIMEISITNOW          40009
 #define ID_BTN_ABOUT                    40010
 #define ID_BTN_SETTING                  40011
@@ -155,14 +158,16 @@
 #define ID_MENU_BTN_NOTICE              40096
 #define ID_40097                        40097
 #define ID_MENU_BTN_DEBUG               40098
+#define ID_40099                        40099
+#define ID_40100                        40100
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        200
-#define _APS_NEXT_COMMAND_VALUE         40099
-#define _APS_NEXT_CONTROL_VALUE         1069
+#define _APS_NEXT_COMMAND_VALUE         40101
+#define _APS_NEXT_CONTROL_VALUE         1070
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
