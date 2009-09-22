@@ -80,7 +80,6 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 		notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
 		notify->inDrag = false;
 		if( g_numofwin<=0 ){
-
 			PostMessage( notify->getParentWindowHandle(), WM_NNA_NOTIFY, NNA_CLOSED_NOTIFYWINDOW, 0 );
 		}
 		delete notify;
@@ -103,6 +102,7 @@ static LRESULT CALLBACK NotifyWindowProc( HWND hWnd, UINT message, WPARAM wParam
 			KillTimer( hWnd, 1 );
 			PostMessage( hWnd, WM_CLOSE, 0, 0 );
 		}else if( x>=rect.left && x<=rect.right && y>=rect.top && y<=rect.bottom ){
+			KillTimer( hWnd, 1 );
 			PostMessage( hWnd, WM_CLOSE, 0, 0 );
 		}else{
 			notify = (tNotifyWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
