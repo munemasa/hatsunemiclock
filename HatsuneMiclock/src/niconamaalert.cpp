@@ -937,6 +937,8 @@ int NicoNamaAlert::Save()
 	std::map<std::string,NicoNamaNoticeType>::iterator it;
 	for(it=m_noticetype.begin(); it!=m_noticetype.end(); it++){
 		NicoNamaNoticeType& alert = (*it).second;
+		if( alert.type==0 ) continue;
+
 		strtowstr( (*it).first, value );
 
 		key = REG_COMMUNITY_SUBKEY L"\\" + value;

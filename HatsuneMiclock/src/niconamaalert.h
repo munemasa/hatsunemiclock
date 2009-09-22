@@ -19,8 +19,8 @@
 //----------------------------------------------------------------------
 // macros & defines
 //----------------------------------------------------------------------
-#define NICO_NOTICETYPE_WINDOW		0x00000001		// open window(常時有効)
-#define NICO_NOTICETYPE_SOUND		0x00000002		// play sound(未使用)
+#define NICO_NOTICETYPE_WINDOW		0x00000001		// open window(フラグなくても今は常時有効)
+#define NICO_NOTICETYPE_SOUND		0x00000002		// play sound(今は常時フラグが立つ)
 #define NICO_NOTICETYPE_BROWSER		0x00000004		// run browser
 #define NICO_NOTICETYPE_EXEC		0x00000008		// run command
 

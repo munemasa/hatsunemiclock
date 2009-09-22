@@ -220,7 +220,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.8\$(ProjectName).exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.9\$(ProjectName).exe"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;;&quot;D:\sources\pcre-7.9-src\lib\x86&quot;"
 				IgnoreDefaultLibraryNames=""
@@ -302,7 +302,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.8\$(ProjectName)64.exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock0.9\$(ProjectName)64.exe"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;;&quot;D:\sources\pcre-7.9-src\lib\x64&quot;"
 				IgnoreDefaultLibraryNames=""
