@@ -486,22 +486,24 @@ int NicoNamaAlert::ShowNicoNamaNoticeByWindow( NicoNamaProgram &program )
 {
 	SendMessage( m_parenthwnd, WM_NNA_NOTIFY, NNA_REQUEST_CREATEWINDOW, (LPARAM)&program );
 
-	NicoNamaNoticeType& alert = m_noticetype[ program.community ];
-	if( alert.type & NICO_NOTICETYPE_BROWSER ){
-		std::wstring url;
-		std::wstring tmp;
-		strtowstr( program.request_id, tmp );
-		url = NICO_LIVE_URL + tmp;
-		OpenURL( url );
-	}
-	if( alert.type & NICO_NOTICETYPE_SOUND ){
-	}
-	if( alert.type & NICO_NOTICETYPE_EXEC ){
-		std::wstring wstr;
-		std::wstring cmd;
-		strtowstr( program.request_id, wstr );
+	if( m_noticetype.count( program.community ) ){
+		NicoNamaNoticeType& alert = m_noticetype[ program.community ];
+		if( alert.type & NICO_NOTICETYPE_BROWSER ){
+			std::wstring url;
+			std::wstring tmp;
+			strtowstr( program.request_id, tmp );
+			url = NICO_LIVE_URL + tmp;
+			OpenURL( url );
+		}
+		if( alert.type & NICO_NOTICETYPE_SOUND ){
+		}
+		if( alert.type & NICO_NOTICETYPE_EXEC ){
+			std::wstring wstr;
+			std::wstring cmd;
+			strtowstr( program.request_id, wstr );
 
-		ShellExecute( getParentHWND(), L"open", alert.command.c_str(), wstr.c_str(), NULL, SW_SHOWNORMAL );
+			ShellExecute( getParentHWND(), L"open", alert.command.c_str(), wstr.c_str(), NULL, SW_SHOWNORMAL );
+		}
 	}
 	return 0;
 }
