@@ -724,7 +724,7 @@ tListWindow::tListWindow( HINSTANCE hinst, HWND parent )
 
 	for(int i=0;i<10;i++){
 		NicoNamaRSSProgram prog;
-		std::wstring wbuf = L"現Ver.はニコ生のサーバに接続しないと表示されません。";
+		std::wstring wbuf = L"現Ver.はニコ生のサーバに接続しないと何も機能しません。";
 		wstrtostr( wbuf, prog.title );
 		InsertItem( i, prog );
 	}
