@@ -24,6 +24,7 @@
 #define IDR_HOUR11                      113
 #define IDD_COMMUNITY_PROPERTY          113
 #define IDR_HOUR12                      114
+#define IDD_ENTER_COMMUNITY_ID          114
 #define IDR_HOUR13                      115
 #define IDR_HOUR14                      116
 #define IDR_HOUR15                      117
@@ -139,9 +140,9 @@
 #define IDC_EDIT_NOTICE_KEYWORD         1067
 #define IDC_SYSLINK_WEBPAGE             1068
 #define IDC_CHK_CMDENABLE               1071
-#define IDC_BUTTON1                     1072
 #define IDC_SELECT                      1072
 #define IDC_EDIT_COMMAND                1073
+#define IDC_EDIT_COMMUNITY_ID           1076
 #define ID_BTN_WHATTIMEISITNOW          40009
 #define ID_BTN_ABOUT                    40010
 #define ID_BTN_SETTING                  40011
@@ -166,14 +167,21 @@
 #define ID_40100                        40100
 #define ID_1_40101                      40101
 #define ID_MENU_BTN_COMMU_PROPERTY      40102
+#define ID_1_40103                      40103
+#define ID_BTN_CREATE_COMMUNITY         40104
+#define ID_1_40105                      40105
+#define ID_MENU_BTN_DELETE_COMMUNITY    40106
+#define ID_MENU_BTN_CREATE_COMMUNITY    40107
+#define ID_0_40108                      40108
+#define ID_MENU_BTN_ADD_COMMUNITYLIST   40109
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        200
-#define _APS_NEXT_COMMAND_VALUE         40103
-#define _APS_NEXT_CONTROL_VALUE         1076
+#define _APS_NEXT_COMMAND_VALUE         40110
+#define _APS_NEXT_CONTROL_VALUE         1078
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

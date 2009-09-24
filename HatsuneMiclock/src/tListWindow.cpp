@@ -25,7 +25,8 @@ static std::string g_community_id = "";
 
 static HWND g_listwindow_hwnd;
 
-
+/** キーワードをレジストリに保存する.
+ */
 static void SaveKeyword( std::wstring& wstr )
 {
 	HKEY hkey;
@@ -34,6 +35,8 @@ static void SaveKeyword( std::wstring& wstr )
 	RegCloseKey( hkey );
 }
 
+/** フィルタリングルールをレジストリに保存する.
+ */
 static void SaveFilteringKeyword()
 {
 	HKEY hkey;
@@ -44,6 +47,8 @@ static void SaveFilteringKeyword()
 	RegCloseKey( hkey );
 }
 
+/** フィルタリングルールをレジストリからロードする.
+ */
 static void LoadFilteringKeyword( )
 {
 	HKEY hkey;
@@ -58,6 +63,8 @@ static void LoadFilteringKeyword( )
 	RegCloseKey( hkey );
 }
 
+/** フィルタリングダイアログのウィンドウプロシージャ.
+ */
 static INT_PTR CALLBACK DlgFilterProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
     switch(msg){
@@ -105,7 +112,8 @@ static INT_PTR CALLBACK DlgFilterProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM 
     return TRUE;
 }
 
-
+/** キーワード入力ダイアログのウィンドウプロシージャ.
+ */
 static INT_PTR CALLBACK DlgInputKeywordProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	HWND parent;
@@ -159,6 +167,8 @@ static INT_PTR CALLBACK DlgInputKeywordProc(HWND hDlgWnd, UINT msg, WPARAM wp, L
     return TRUE;
 }
 
+/** 通知タイプをNicoNamaAlertに設定し、レジストリに保存する.
+ */
 static void SaveNoticeType( HWND hDlgWnd )
 {
 	HWND h;
@@ -173,6 +183,9 @@ static void SaveNoticeType( HWND hDlgWnd )
 	nico = listwin->getNicoNamaAlert();
 	if( !nico ) return;
 
+    // 今ある分を全消去して...
+	nico->getNoticeTypeList().clear();
+	// リストビューにある分だけ登録.
 	num = ListView_GetItemCount( h );
 	for(int i=0; i<num; i++){
 		std::string co;
@@ -185,18 +198,19 @@ static void SaveNoticeType( HWND hDlgWnd )
 		NicoNamaNoticeType&	alert = nico->getNoticeType( co );
 		DWORD tmp = alert.type;
 		tmp &= NICO_NOTICETYPE_EXEC;	// EXEC以外を消して...
-
+		tmp |= NICO_NOTICETYPE_WINDOW | NICO_NOTICETYPE_SOUND;
 		// 再設定.
 		if( ListView_GetCheckState( h, i )!=0 ) {
-			alert.type = tmp | NICO_NOTICETYPE_SOUND | NICO_NOTICETYPE_BROWSER;
+			alert.type = tmp | NICO_NOTICETYPE_BROWSER;
 		}else{
-			alert.type = tmp | NICO_NOTICETYPE_SOUND;
+			alert.type = tmp;
 		}
 	}
 	nico->Save();
 }
 
-
+/** コミュニティのプロパティダイアログのウィンドウプロシージャ.
+ */
 static INT_PTR CALLBACK DlgCommunityPropertyProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch(msg){
@@ -205,13 +219,8 @@ static INT_PTR CALLBACK DlgCommunityPropertyProc(HWND hDlgWnd, UINT msg, WPARAM 
 		NicoNamaAlert*nico  = listwin->getNicoNamaAlert();
 		NicoNamaNoticeType& atype = nico->getNoticeType( g_community_id );
 
-		HWND parts;
-		parts = GetDlgItem( hDlgWnd, IDC_CHK_CMDENABLE );
-		if( atype.type & NICO_NOTICETYPE_EXEC ){
-			Button_SetCheck( parts, TRUE );
-		}else{
-			Button_SetCheck( parts, FALSE );
-		}
+		HWND parts = GetDlgItem( hDlgWnd, IDC_CHK_CMDENABLE );
+		Button_SetCheck( parts, (atype.type&NICO_NOTICETYPE_EXEC)?TRUE:FALSE );
 		SetDlgItemText( hDlgWnd, IDC_EDIT_COMMAND, atype.command.c_str() );
 		return TRUE;
 		break;}
@@ -234,12 +243,11 @@ static INT_PTR CALLBACK DlgCommunityPropertyProc(HWND hDlgWnd, UINT msg, WPARAM 
 			openfile.lpstrFile = buf;
 			openfile.nMaxFile = 2048;
 			openfile.Flags = OFN_FILEMUSTEXIST | OFN_LONGNAMES;
-
 			if( GetOpenFileName( &openfile ) ){
 				dprintf( L"select: %s\n", buf );
 				SetDlgItemText( hDlgWnd, IDC_EDIT_COMMAND, buf );
 			}else{
-				dprintf( L"You don't select the file\n" );
+				dprintf( L"You didn't select the file\n" );
 			}
 			return TRUE;
 			break;}
@@ -279,7 +287,49 @@ static INT_PTR CALLBACK DlgCommunityPropertyProc(HWND hDlgWnd, UINT msg, WPARAM 
 	return TRUE;
 }
 
+/** コミュニティの追加ダイアログのウィンドウプロシージャ.
+ */
+static INT_PTR CALLBACK DlgNewCommunityProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+	switch(msg){
+	case WM_INITDIALOG:
+		return TRUE;
+		break;
 
+	case WM_COMMAND:
+        switch(LOWORD(wp)){
+		case IDCANCEL:
+			EndDialog( hDlgWnd, IDCANCEL );
+			break;
+
+		case IDOK:{
+			WCHAR wbuf[1024];
+			std::wstring wstr;
+			GetDlgItemText( hDlgWnd, IDC_EDIT_COMMUNITY_ID, wbuf, 1024 );
+			wstr = wbuf;
+			wstrtostr( wstr, g_community_id );
+			EndDialog( hDlgWnd, IDOK );
+			break;}
+
+		default:
+            return FALSE;
+        }
+        break;
+
+	case WM_CLOSE:
+        PostMessage( hDlgWnd, WM_COMMAND, IDCANCEL, 0 );
+        return TRUE;
+
+	default:
+		return FALSE;
+		break;
+	}
+	return TRUE;
+}
+
+
+/** コミュニティリストダイアログの初期設定.
+ */
 static void InitCommunityDialog(HWND hDlgWnd)
 {
 	HWND h;
@@ -310,37 +360,71 @@ static void InitCommunityDialog(HWND hDlgWnd)
 	parent = GetWindow( hDlgWnd, GW_OWNER );
 	listwin = (tListWindow*)GetWindowLongPtr( parent, GWLP_USERDATA );
 	nico = listwin->getNicoNamaAlert();
-	if( nico ){
-		std::vector< std::wstring >& commu = nico->getCommunities();
-		std::vector< std::wstring >::iterator it;
-		int i=0;
-		for(it=commu.begin(); it!=commu.end(); it++,i++){
-			LV_ITEM item;
-			ZeroMemory( &item, sizeof(item) );
-			// タイトル.
-			item.mask		= LVIF_TEXT;
-			item.iItem		= i;
-			item.pszText	= (LPWSTR)(*it).c_str();
-			item.iSubItem	= 0;
-			ListView_InsertItem(h , &item );
+    if( !nico ) return;
 
-			std::wstring communityname = nico->getCommunityName( (*it) );
-			item.pszText	= (LPWSTR)communityname.c_str();
-			item.iSubItem	= 1;
-			ListView_SetItem( h, &item );
+    int i=0;
 
-			std::string mbstr;
-			wstrtostr( (*it), mbstr );
-			NicoNamaNoticeType &t = nico->getNoticeType( mbstr );
-			if( t.type & NICO_NOTICETYPE_BROWSER ){
-				ListView_SetCheckState( h, i, TRUE );
-			}else{
-				ListView_SetCheckState( h, i, FALSE );
-			}
-		}
-	}
+    // まず参加コミュニティからリストビューに追加.
+    std::vector<std::wstring>& commu = nico->getCommunities();
+    for( std::vector<std::wstring>::iterator it=commu.begin(); it!=commu.end(); it++,i++){
+        LV_ITEM item;
+        ZeroMemory( &item, sizeof(item) );
+        // コミュニティID
+        item.mask		= LVIF_TEXT;
+        item.iItem		= i;
+        item.pszText	= (LPWSTR)(*it).c_str();
+        item.iSubItem	= 0;
+        ListView_InsertItem(h , &item );
+        // コミュニティ名.
+        std::wstring communityname = nico->getCommunityName( (*it) );
+        item.pszText	= (LPWSTR)communityname.c_str();
+        item.iSubItem	= 1;
+        ListView_SetItem( h, &item );
+
+        std::string mbstr;
+        wstrtostr( (*it), mbstr );
+        NicoNamaNoticeType &t = nico->getNoticeType( mbstr );
+        if( t.type & NICO_NOTICETYPE_BROWSER ){
+            ListView_SetCheckState( h, i, TRUE );
+        }else{
+            ListView_SetCheckState( h, i, FALSE );
+        }
+    }// end of for.
+
+    // 次は参加していないコミュで通知登録したコミュをリストビューに追加.
+    std::map<std::string,NicoNamaNoticeType>& noticelist = nico->getNoticeTypeList();
+    for( std::map<std::string,NicoNamaNoticeType>::iterator it=noticelist.begin(); it!=noticelist.end(); it++ ){
+        const std::string commu_id = (*it).first;
+        if( nico->isParticipant( commu_id ) ) continue;
+
+        std::wstring wstr;
+        LV_ITEM item;
+        ZeroMemory( &item, sizeof(item) );
+        // コミュニティID
+        item.mask		= LVIF_TEXT;
+        item.iItem		= i;
+        strtowstr( commu_id, wstr );
+        item.pszText	= (LPWSTR)wstr.c_str();
+        item.iSubItem	= 0;
+        ListView_InsertItem( h , &item );
+        // コミュニティ名.
+        std::wstring communityname = nico->getCommunityName( commu_id );
+        item.pszText	= (LPWSTR)communityname.c_str();
+        item.iSubItem	= 1;
+        ListView_SetItem( h, &item );
+
+        NicoNamaNoticeType &t = nico->getNoticeType( commu_id );
+        if( t.type & NICO_NOTICETYPE_BROWSER ){
+            ListView_SetCheckState( h, i, TRUE );
+        }else{
+            ListView_SetCheckState( h, i, FALSE );
+        }
+        i++;
+    }
 }
 
+/** コミュニティリストダイアログのウィンドウプロシージャ.
+ */
 static INT_PTR CALLBACK DlgCommunityProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch(msg){
@@ -354,31 +438,74 @@ static INT_PTR CALLBACK DlgCommunityProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPAR
 
 		switch( pnmh->code ){
 		case NM_RCLICK:{
+            // 以下、右クリックしたときの処理.
 			LPNMITEMACTIVATE itemact = (LPNMITEMACTIVATE)lp;
-			HMENU menu, submenu;
-		    menu = LoadMenu( GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_CONTEXTMENU) );
-			submenu = GetSubMenu( menu, 1 ); 
+			INT_PTR dlgret;
+			HMENU menu = LoadMenu( GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_LISTWINDOW_CONTEXTMENU) );
+			HMENU submenu = GetSubMenu( menu, 1 );
+			HWND h = GetDlgItem( hDlgWnd, IDC_COMMUNITY_LIST );
 		    POINT pt;
 			GetCursorPos( &pt );
-			int r;
-			r = TrackPopupMenuEx( submenu, TPM_LEFTALIGN | TPM_RETURNCMD, pt.x, pt.y, hDlgWnd, NULL );
-			if( r==ID_MENU_BTN_COMMU_PROPERTY ){
+			int r = TrackPopupMenuEx( submenu, TPM_LEFTALIGN | TPM_RETURNCMD, pt.x, pt.y, hDlgWnd, NULL );
+			switch( r ){
+			case ID_MENU_BTN_COMMU_PROPERTY:{
+                // プロパティ.
+				if( itemact->iItem<0 ) break;
 				dprintf(L"open property\n");
-				WCHAR wbuf[1024];
-				HWND h;
-				h = GetDlgItem( hDlgWnd, IDC_COMMUNITY_LIST );
-				ListView_GetItemText( h, itemact->iItem, 0, wbuf, 1024 );
-				std::wstring wstr = wbuf;
-				wstrtostr( wstr, g_community_id );
-				INT_PTR dlgret;
-				dlgret = DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_COMMUNITY_PROPERTY), hDlgWnd, DlgCommunityPropertyProc );
+				myListView_GetItemText( h, itemact->iItem, 0, g_community_id );
+				DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_COMMUNITY_PROPERTY), hDlgWnd, DlgCommunityPropertyProc );
+				break;}
+
+			case ID_MENU_BTN_CREATE_COMMUNITY:
+                // コミュニティの追加.
+				dlgret = DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_ENTER_COMMUNITY_ID), hDlgWnd, DlgNewCommunityProc );
+				if( dlgret==IDOK ){
+					tListWindow*listwin = (tListWindow*)GetWindowLongPtr( g_listwindow_hwnd, GWLP_USERDATA );
+					NicoNamaAlert*nico  = listwin->getNicoNamaAlert();
+                    if( !nico ) break;
+
+                    LV_ITEM item;
+                    std::wstring wstr;
+                    ZeroMemory( &item, sizeof(item) );
+                    // community id
+                    item.mask		= LVIF_TEXT;
+                    item.iItem		= ListView_GetItemCount( h );
+                    strtowstr( g_community_id, wstr );
+                    item.pszText	= (LPWSTR)wstr.c_str();
+                    item.iSubItem	= 0;
+                    ListView_InsertItem(h , &item );
+                    // community name
+                    std::wstring communityname = nico->getCommunityName( g_community_id );
+                    item.pszText	= (LPWSTR)communityname.c_str();
+                    item.iSubItem	= 1;
+                    ListView_SetItem( h, &item );
+				}
+				break;
+
+			case ID_MENU_BTN_DELETE_COMMUNITY:{
+                // コミュニティの削除.
+				if( itemact->iItem<0 ) break;
+				tListWindow*listwin = (tListWindow*)GetWindowLongPtr( g_listwindow_hwnd, GWLP_USERDATA );
+				NicoNamaAlert*nico  = listwin->getNicoNamaAlert();
+				std::wstring cid;
+				myListView_GetItemText( h, itemact->iItem, 0, cid );
+				// 参加コミュニティは削除させない.
+				if( nico && !nico->isParticipant( cid ) ){
+					dprintf(L"delete community\n");
+					ListView_DeleteItem( h, itemact->iItem );
+				}
+				break;}
+
+			default:
+				break;
 			}
 			DestroyMenu( menu );
 			break;}
 
 		default:
-			break;
+			return FALSE;
 		}
+		return TRUE;
 		break;}
 
     case WM_COMMAND:
@@ -418,31 +545,42 @@ static LRESULT OnMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 
 	switch( id ){
     case ID_MENU_BTN_FILTER:
+		// フィルタリング.
 		dlgret = DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_FILTER_DIALOG), hWnd, DlgFilterProc );
 		if( dlgret==IDCANCEL ) break;
-		// フィルタリング.
 		listwin->SetFilter( g_utf8_filteringpattern );
 		break;
 
 	case ID_MENU_BTN_COMMUNITY:
+        // コミュニティリスト.
 		dlgret = DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_COMMUNITY_LIST), hWnd, DlgCommunityProc );
 		break;
 
 	case ID_MENU_BTN_NOTICE:
+        // キーワード通知.
 		dlgret = DialogBox( GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_INPUT_KEYWORD), hWnd, DlgInputKeywordProc );
 		break;
 
 	case ID_BTN_GO_BORADCASTING:
+        // 生放送に飛ぶ.
 		col = ListView_GetNextItem( listwin->getListViewHandle(), -1, LVNI_ALL|LVNI_SELECTED );
 		listwin->GoPage( col, GO_TYPE_BROADCASTING_PAGE );
 		break;
 
 	case ID_BTN_GO_COMMUNITY:
+        // コミュに飛ぶ.
 		col = ListView_GetNextItem( listwin->getListViewHandle(), -1, LVNI_ALL|LVNI_SELECTED );
 		listwin->GoPage( col, GO_TYPE_COMMUNITY_PAGE );
 		break;
 
+	case ID_MENU_BTN_ADD_COMMUNITYLIST:
+		// ニコ生アラートの通知コミュニティリストに追加する.
+		col = ListView_GetNextItem( listwin->getListViewHandle(), -1, LVNI_ALL|LVNI_SELECTED );
+		listwin->AddCommunityList( col );
+		break;
+
 	case ID_MENU_BTN_DEBUG:
+        // for debug
 		listwin->SetBoadcastingList( listwin->getNicoNamaAlert()->getRSSProgram() );
 		break;
 
@@ -511,6 +649,8 @@ static LRESULT CALLBACK ListWindowProc( HWND hWnd, UINT message, WPARAM wParam, 
 	return DefWindowProc( hWnd, message, wParam, lParam );
 }
 
+/** カラムの初期化.
+ */
 void tListWindow::InitColumn()
 {
 	LV_COLUMN column;
@@ -568,10 +708,7 @@ tListWindow::tListWindow( HINSTANCE hinst, HWND parent )
 	DWORD dwExStyle = 0;
 	int x,y,w,h;
 	// 仮.
-	x = 0;
-	y = 0;
-	w = 640;
-	h = 480;
+	x = 0; y = 0; w = 640; h = 480;
 	std::wstring caption = GetStringFromResource(IDS_NICO_PROGRAM_LIST_CAPTION);
 	m_hwnd = myCreateWindowEx( dwExStyle, T_LIST_CLASS, (WCHAR*)caption.c_str(), dwStyle, x, y, w, h, NULL, TRUE );
 	SetWindowPos( m_hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE|SWP_NOSIZE);
@@ -727,6 +864,20 @@ void tListWindow::ShowContextMenu( int index )
     r = TrackPopupMenuEx( submenu, TPM_LEFTALIGN, pt.x, pt.y, m_hwnd, NULL );
 
 	DestroyMenu( menu );
+}
+
+// 番組一覧から通知コミュニティリストに追加してレジストリに通知リストを保存する.
+void tListWindow::AddCommunityList( int col )
+{
+	if( col<0 ) return;
+	NicoNamaAlert*nico = getNicoNamaAlert();
+	if( !nico ) return;
+
+	std::string& cid = m_filteredlist[col].community_id;
+	NicoNamaNoticeType notice = nico->getNoticeType( cid );	// すでに登録済みかもしれないので一旦取得.
+	notice.type |= NICO_NOTICETYPE_WINDOW | NICO_NOTICETYPE_SOUND;
+	nico->setNoticeType( cid, notice );
+	nico->Save();
 }
 
 void tListWindow::GoPage( int col, int type )

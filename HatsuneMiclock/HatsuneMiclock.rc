@@ -169,10 +169,6 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "終了(&Q)",                      ID_BTN_QUIT
     END
-    POPUP "1"
-    BEGIN
-        MENUITEM "プロパティ(&R)",                   ID_MENU_BTN_COMMU_PROPERTY
-    END
 END
 
 IDR_LISTWINDOWMENU MENU 
@@ -180,7 +176,7 @@ BEGIN
     MENUITEM "!フィルタ(&F)",                   ID_MENU_BTN_FILTER
     POPUP "設定(&S)"
     BEGIN
-        MENUITEM "コミュニティ...(&C)",               ID_MENU_BTN_COMMUNITY
+        MENUITEM "通知コミュニティ...(&C)",             ID_MENU_BTN_COMMUNITY
         MENUITEM "キーワード通知...(&K)",              ID_MENU_BTN_NOTICE
         MENUITEM SEPARATOR
         MENUITEM "デバッグ",                        ID_MENU_BTN_DEBUG, GRAYED
@@ -193,6 +189,15 @@ BEGIN
     BEGIN
         MENUITEM "生放送のページに行く",                  ID_BTN_GO_BORADCASTING
         MENUITEM "コミュニティのページに行く",               ID_BTN_GO_COMMUNITY
+        MENUITEM SEPARATOR
+        MENUITEM "通知対象にする",                     ID_MENU_BTN_ADD_COMMUNITYLIST
+    END
+    POPUP "1"
+    BEGIN
+        MENUITEM "新規追加(&N)",                    ID_MENU_BTN_CREATE_COMMUNITY
+        MENUITEM "削除(&D)",                      ID_MENU_BTN_DELETE_COMMUNITY
+        MENUITEM SEPARATOR
+        MENUITEM "プロパティ(&R)",                   ID_MENU_BTN_COMMU_PROPERTY
     END
 END
 
@@ -286,7 +291,7 @@ END
 
 IDD_COMMUNITY_LIST DIALOGEX 0, 0, 235, 186
 STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
-CAPTION "コミュニティリスト"
+CAPTION "通知コミュニティリスト"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
     CONTROL         "",IDC_COMMUNITY_LIST,"SysListView32",LVS_REPORT | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,6,25,221,132
@@ -329,6 +334,17 @@ BEGIN
     EDITTEXT        IDC_EDIT_COMMAND,21,46,131,15,ES_AUTOHSCROLL
     PUSHBUTTON      "OK",IDOK,97,99,41,17
     PUSHBUTTON      "キャンセル",IDCANCEL,141,99,41,17
+END
+
+IDD_ENTER_COMMUNITY_ID DIALOGEX 0, 0, 186, 88
+STYLE DS_SETFONT | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
+CAPTION "コミュニティIDを入力してください"
+FONT 9, "MS UI Gothic", 400, 0, 0x0
+BEGIN
+    EDITTEXT        IDC_EDIT_COMMUNITY_ID,16,32,152,18,ES_AUTOHSCROLL
+    LTEXT           "新規追加するコミュニティIDを入力してください(coXXXXX)",IDC_STATIC,16,17,152,8
+    PUSHBUTTON      "OK",IDOK,82,59,41,17
+    PUSHBUTTON      "キャンセル",IDCANCEL,127,59,41,17
 END
 
 

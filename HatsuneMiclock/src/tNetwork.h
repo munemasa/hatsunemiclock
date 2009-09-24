@@ -30,6 +30,8 @@ public:
 
 	// 返却したポインタを呼び出しもとで解放していればメモリリークなし.
 	int request( const WCHAR*url, char**data, DWORD*datalen, const char*postdata=NULL, DWORD postlen=0 );
+	int request( std::wstring url, char**data, DWORD*datalen, const char*postdata=NULL, DWORD postlen=0 );
+	int request( std::string url, char**data, DWORD*datalen, const char*postdata=NULL, DWORD postlen=0 );
 };
 
 

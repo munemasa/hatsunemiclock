@@ -19,7 +19,7 @@
 //----------------------------------------------------------------------
 // macros & defines
 //----------------------------------------------------------------------
-#define NICO_NOTICETYPE_WINDOW		0x00000001		// open window(フラグなくても今は常時有効)
+#define NICO_NOTICETYPE_WINDOW		0x00000001		// open window(今は常時有効)
 #define NICO_NOTICETYPE_SOUND		0x00000002		// play sound(今は常時フラグが立つ)
 #define NICO_NOTICETYPE_BROWSER		0x00000004		// run browser
 #define NICO_NOTICETYPE_EXEC		0x00000008		// run command
@@ -198,7 +198,7 @@ private:
 
 	bool isAlreadyAnnounced( std::string& request_id );
 
-	void ProcessNotify( std::wstring& str );
+	void ProcessNotify( std::string& str );
 
 public:
 	void setRSSProgram( std::map<std::string,NicoNamaRSSProgram>& src ){
@@ -218,7 +218,7 @@ public:
 	}
 
 	void setNoticeType( std::string& co, NicoNamaNoticeType& type ){ m_noticetype[ co ] = type; }
-	NicoNamaNoticeType& getNoticeType( std::string& co ){ return m_noticetype[ co ]; }
+	NicoNamaNoticeType& getNoticeType( const std::string& co ){ return m_noticetype[ co ]; }
 
 	inline std::string& getMatchKeyword(){ return m_matchkeyword; }
 	inline void setMatchKeyword( std::string& str ){ m_matchkeyword = str; }
@@ -228,18 +228,26 @@ public:
 	inline void SetRandomPickup( bool b ){ m_randompickup = b; }
 	inline bool isRandomPickup() const { return m_randompickup; }
 	inline std::vector< std::wstring >& getCommunities(){ return m_communities; }
-	std::wstring getCommunityName( std::wstring& commu_id );
+
+	std::wstring getCommunityName( const std::string& commu_id );
+	std::wstring getCommunityName( const std::wstring& commu_id );
 
 	inline std::list<NicoNamaProgram>& getRecentList(){ return m_recent_program; }
 	inline std::list<NicoNamaProgram>& getRecentCommunityList(){ return m_recent_commu_prog; }
+	inline std::map<std::string,NicoNamaNoticeType>& getNoticeTypeList(){ return m_noticetype; }
 
 	int Auth( const char*mail, const char*password );
 	int ConnectCommentServer();
 	int KeepAlive();
-	int Receive( std::wstring &str );
+	int Receive( std::string &str );
 	void DoReceive();
 
-	bool isParticipant( std::wstring&communityid );
+	bool isParticipant( const std::string& str );
+	bool isParticipant( const std::wstring&communityid );
+	bool isParticipant( const WCHAR*communityid );
+	bool hasNoticeType( const std::wstring&communityid );
+	bool hasNoticeType( const std::string& communityid );
+
 	int ShowNicoNamaNotice( NicoNamaProgram &program );
 	void ShowNextNoticeWindow();
 	void AddNoticeQueue( NicoNamaProgram &program, bool nostack=false );

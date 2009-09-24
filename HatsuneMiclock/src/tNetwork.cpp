@@ -80,6 +80,19 @@ bool tHttp::allocbuffer( int bufsize )
 	return true;
 }
 
+int tHttp::request( std::wstring url, char**data, DWORD*datalen, const char*postdata, DWORD postlen )
+{
+	return request( url.c_str(), data, datalen, postdata, postlen );
+}
+
+int tHttp::request( std::string url, char**data, DWORD*datalen, const char*postdata, DWORD postlen )
+{
+	std::wstring wurl;
+	strtowstr( url, wurl );
+	return request( wurl.c_str(), data, datalen, postdata, postlen );
+}
+
+
 /** HTTP GET/POSTする.
  * @param url URL
  * @param data 取得するデータポインタを受けとる先.

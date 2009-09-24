@@ -1,6 +1,11 @@
 #include "winheader.h"
+#include <shlwapi.h>
+
+#include "stringlib.h"
 #include "misc.h"
 #include "debug.h"
+
+#pragma comment(lib,"shlwapi.lib")
 
 
 void WriteUsedMemorySize()
@@ -9,6 +14,23 @@ void WriteUsedMemorySize()
 
 #endif
 }
+
+void myListView_GetItemText( HWND h, int i, int isub, std::wstring&str )
+{
+	WCHAR wbuf[1024];
+	ListView_GetItemText( h, i, isub, wbuf, 1024 );
+	str = wbuf;
+}
+void myListView_GetItemText( HWND h, int i, int isub, std::string&str )
+{
+	std::wstring wstr;
+	WCHAR wbuf[1024];
+	ListView_GetItemText( h, i, isub, wbuf, 1024 );
+	wstr = wbuf;
+	wstrtostr( wstr, str );
+}
+
+
 
 // クライアント領域がw,hになるようにウィンドウを作成する...はずだけどサイズ合わないな.
 HWND myCreateWindowEx( DWORD dwExStyle, WCHAR*classname, WCHAR*caption, DWORD dwStyle, int x, int y, int w, int h, HWND parent, BOOL havemenu )
@@ -72,6 +94,18 @@ BOOL Is_WinXP_SP2_or_Later()
 	VER_SERVICEPACKMAJOR | VER_SERVICEPACKMINOR,
 	dwlConditionMask);
 }
+
+// key の subkey を削除.
+LSTATUS DeleteRegistorySubKey( WCHAR*key, WCHAR*subkey )
+{
+	HKEY hKey;
+	LSTATUS st;
+	RegOpenKeyEx( HKEY_CURRENT_USER, key, 0, KEY_ALL_ACCESS, &hKey);
+	st = SHDeleteKey(hKey, subkey );
+	RegCloseKey(hKey);
+	return st;
+}
+
 
 /// レジストリの読み込み.
 LSTATUS ReadRegistoryDW( HKEY hkey, WCHAR*entry, DWORD*data )

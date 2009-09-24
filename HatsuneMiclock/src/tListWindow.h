@@ -53,6 +53,7 @@ public:
 	void SetBoadcastingList( std::map<std::string,NicoNamaRSSProgram>& rssprog );
 	void ShowContextMenu( int index );
 	void GoPage( int col, int type );
+	void AddCommunityList( int col );
 
 	void Show( NicoNamaAlert*nico );
 	void Hide();
