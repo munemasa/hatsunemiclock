@@ -19,10 +19,15 @@
 //----------------------------------------------------------------------
 // macros & defines
 //----------------------------------------------------------------------
-#define NICO_NOTICETYPE_WINDOW		0x00000001		// open window(今は常時有効)
-#define NICO_NOTICETYPE_SOUND		0x00000002		// play sound(今は常時フラグが立つ)
-#define NICO_NOTICETYPE_BROWSER		0x00000004		// run browser
-#define NICO_NOTICETYPE_EXEC		0x00000008		// run command
+enum NICO_NOTICETYPE {
+	NICO_NOTICETYPE_NONE		= 0x00000000,
+	NICO_NOTICETYPE_WINDOW		= 0x00000001,		// open window(今は常時有効)
+	NICO_NOTICETYPE_SOUND		= 0x00000002,		// play sound(今は常時フラグが立つ)
+	NICO_NOTICETYPE_BROWSER		= 0x00000004,		// run browser
+	NICO_NOTICETYPE_EXEC		= 0x00000008,		// run command
+	NICO_NOTICETYPE_CLIPBOARD	= 0x00000010,		// copy broadcast id to clipboard
+};
+
 
 // 1ページ18番組なので、それぞれ(nicolive:total_count-1)/18+1回読めば全部読めることになる.
 #define NICONAMA_COMMON_RSS		L"http://live.nicovideo.jp/recent/rss?tab=common&sort=start&p="	// 一般
@@ -51,22 +56,22 @@ class tNotifyWindow;
 // これは通知ウィンドウに渡す情報.
 struct NicoNamaProgram {
 	// utf-8
-	std::string		request_id;	// lvXXXXXXX
+	std::string		request_id;		///< lvXXXXXXX
 	std::string		title;
 	std::string		description;
 
-	std::string		community;	// coXXXX, chXXXX
+	std::string		community;		///< coXXXX, chXXXX
 	std::string		community_name;
-	std::string		thumbnail;	// サムネURL
+	std::string		thumbnail;		///< サムネURL
 
 	char*			thumbnail_image;
 	DWORD			thumbnail_image_size;
 
-	time_t			start;		// 番組の開始時刻.
-	bool			playsound;	// サウンド通知を行うか.
-	bool			isparticipant;	// 参加コミュのものかどうか.
-	int				posx;		// 表示位置X.
-	int				posy;		// 表示位置Y.
+	time_t			start;			///< 番組の開始時刻.
+	bool			playsound;		///< サウンド通知を行うか. falseの場合は通知タイプにSOUNDを指定されても再生しない.
+	bool			isparticipant;	///< 参加コミュの放送かどうか.
+	int				posx;			///< 表示位置X.
+	int				posy;			///< 表示位置Y.
 
 	NicoNamaProgram(){ thumbnail_image = NULL; playsound=false; posx=posy=-1; }
 	~NicoNamaProgram(){ SAFE_FREE( thumbnail_image ); }
@@ -132,10 +137,11 @@ struct NicoNamaRSSProgram {
 };
 
 
-// 通知方法.
+// コミュニティごとの通知方法.
 struct NicoNamaNoticeType {
-	std::wstring	command;
-	DWORD			type;
+	std::wstring	command;		///< 実行するコマンド.
+	std::wstring	soundfile;		///< 再生するサウンドファイル.
+	DWORD			type;			///< 通知方法.
 	NicoNamaNoticeType(){
 		command = L"";
 		type = 0;
@@ -186,6 +192,7 @@ private:
 	std::map<std::string,NicoNamaRSSProgram>	m_rss_program;	///< RSSにある全番組.
 	std::map<std::string,NicoNamaNoticeType>	m_noticetype;	///< コミュごとの通知タイプ指定.
 	std::map<std::string,std::string>			m_community_name_cache;	///< コミュニティ名キャッシュ.
+	std::wstring	m_defaultsound;	///< デフォルトで再生するサウンドファイル.
 
 	std::string					m_matchkeyword;		///< キーワード通知用.
 	std::list<std::string>		m_announcedlist;	///< 二重通知しないための通知済み一覧.
@@ -229,6 +236,8 @@ public:
 	inline bool isRandomPickup() const { return m_randompickup; }
 	inline std::vector< std::wstring >& getCommunities(){ return m_communities; }
 
+	void setDefaultSound( const std::wstring& file ){ m_defaultsound = file; }
+
 	std::wstring getCommunityName( const std::string& commu_id );
 	std::wstring getCommunityName( const std::wstring& commu_id );
 
@@ -259,6 +268,9 @@ public:
 	int GetAllRSS();
 	int NotifyNowBroadcasting();
 	int NotifyKeywordMatch();
+
+	static void GoCommunity( const std::string& cid );
+	static void GoCommunity( const std::wstring& cid );
 
 	int Load();
 	int Save();

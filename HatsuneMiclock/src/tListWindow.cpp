@@ -184,7 +184,10 @@ static void SaveNoticeType( HWND hDlgWnd )
 	if( !nico ) return;
 
     // 今ある分を全消去して...
+	std::map<std::string,NicoNamaNoticeType> backup;
+	backup = nico->getNoticeTypeList();
 	nico->getNoticeTypeList().clear();
+
 	// リストビューにある分だけ登録.
 	num = ListView_GetItemCount( h );
 	for(int i=0; i<num; i++){
@@ -196,8 +199,12 @@ static void SaveNoticeType( HWND hDlgWnd )
 
 		// 現在の通知タイプを取得して...
 		NicoNamaNoticeType&	alert = nico->getNoticeType( co );
+		alert.command	= backup[co].command;
+		alert.soundfile = backup[co].soundfile;
+		alert.type		= backup[co].type;
+
 		DWORD tmp = alert.type;
-		tmp &= NICO_NOTICETYPE_EXEC;	// EXEC以外を消して...
+		tmp &= NICO_NOTICETYPE_EXEC|NICO_NOTICETYPE_CLIPBOARD;	// EXEC,CLIPBOARD以外を消して...
 		tmp |= NICO_NOTICETYPE_WINDOW | NICO_NOTICETYPE_SOUND;
 		// 再設定.
 		if( ListView_GetCheckState( h, i )!=0 ) {
@@ -209,21 +216,31 @@ static void SaveNoticeType( HWND hDlgWnd )
 	nico->Save();
 }
 
+static void InitDlgCommunityProperty(HWND hDlgWnd)
+{
+	tListWindow*listwin = (tListWindow*)GetWindowLongPtr( g_listwindow_hwnd, GWLP_USERDATA );
+	NicoNamaAlert*nico  = listwin->getNicoNamaAlert();
+	NicoNamaNoticeType& atype = nico->getNoticeType( g_community_id );
+
+	// コマンド実行まわり.
+	HWND parts = GetDlgItem( hDlgWnd, IDC_CHK_CMDENABLE );
+	Button_SetCheck( parts, (atype.type&NICO_NOTICETYPE_EXEC)?TRUE:FALSE );
+	SetDlgItemText( hDlgWnd, IDC_EDIT_COMMAND, atype.command.c_str() );
+
+	// クリップボードにコピーするかどうかフラグ.
+	parts = GetDlgItem( hDlgWnd, IDC_CHK_COPY_CLIPBOARD );
+	Button_SetCheck( parts, (atype.type&NICO_NOTICETYPE_CLIPBOARD)?TRUE:FALSE );
+}
+
 /** コミュニティのプロパティダイアログのウィンドウプロシージャ.
  */
 static INT_PTR CALLBACK DlgCommunityPropertyProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch(msg){
-	case WM_INITDIALOG:{
-		tListWindow*listwin = (tListWindow*)GetWindowLongPtr( g_listwindow_hwnd, GWLP_USERDATA );
-		NicoNamaAlert*nico  = listwin->getNicoNamaAlert();
-		NicoNamaNoticeType& atype = nico->getNoticeType( g_community_id );
-
-		HWND parts = GetDlgItem( hDlgWnd, IDC_CHK_CMDENABLE );
-		Button_SetCheck( parts, (atype.type&NICO_NOTICETYPE_EXEC)?TRUE:FALSE );
-		SetDlgItemText( hDlgWnd, IDC_EDIT_COMMAND, atype.command.c_str() );
+	case WM_INITDIALOG:
+		InitDlgCommunityProperty( hDlgWnd );
 		return TRUE;
-		break;}
+		break;
 
 	case WM_COMMAND:
         switch(LOWORD(wp)){
@@ -256,6 +273,13 @@ static INT_PTR CALLBACK DlgCommunityPropertyProc(HWND hDlgWnd, UINT msg, WPARAM 
 			tListWindow*listwin = (tListWindow*)GetWindowLongPtr( g_listwindow_hwnd, GWLP_USERDATA );
 			NicoNamaAlert*nico  = listwin->getNicoNamaAlert();
 			NicoNamaNoticeType& atype = nico->getNoticeType( g_community_id );
+
+			// クリップボードにコピーする.
+			if( IsDlgButtonChecked( hDlgWnd, IDC_CHK_COPY_CLIPBOARD) ){
+				atype.type |= NICO_NOTICETYPE_CLIPBOARD;
+			}else{
+				atype.type &= ~NICO_NOTICETYPE_CLIPBOARD;
+			}
 
 			// コマンドの有効チェックボックス.
 			if( IsDlgButtonChecked( hDlgWnd, IDC_CHK_CMDENABLE) ){
@@ -494,6 +518,13 @@ static INT_PTR CALLBACK DlgCommunityProc(HWND hDlgWnd, UINT msg, WPARAM wp, LPAR
 					dprintf(L"delete community\n");
 					ListView_DeleteItem( h, itemact->iItem );
 				}
+				break;}
+
+			case ID_MENU_BTN_GO_COMMUNITY:{
+				if( itemact->iItem<0 ) break;
+				std::wstring cid;
+				myListView_GetItemText( h, itemact->iItem, 0, cid );
+				NicoNamaAlert::GoCommunity( cid );
 				break;}
 
 			default:
@@ -892,14 +923,7 @@ void tListWindow::GoPage( int col, int type )
 		break;
 
 	case GO_TYPE_COMMUNITY_PAGE:
-		strtowstr( m_filteredlist[col].community_id, wstr );
-		if( m_filteredlist[col].community_id.find("ch")!=std::string::npos ){
-			// channel
-			OpenURL( std::wstring( NICO_CHANNEL_URL + wstr ) );
-		}else{
-			// community
-			OpenURL( std::wstring( NICO_COMMUNITY_URL + wstr ) );
-		}
+		NicoNamaAlert::GoCommunity( m_filteredlist[col].community_id );
 		break;
 
 	default:

@@ -896,7 +896,7 @@ void CreateNicoNamaNotice( NicoNamaProgram*program )
     str = tmp.find( L"ch",0 )!=std::wstring::npos ? NICO_CHANNEL_URL : NICO_COMMUNITY_URL;
     str += tmp;
 	notifywin->SetCommunityURL( str );
-	notifywin->setSoundFile( g_config.nico_notify_sound );
+
 	notifywin->Show( program->playsound, program->posx, program->posy );
 }
 
@@ -1222,24 +1222,12 @@ void NicoNamaLogin( HWND hWnd )
 		if( g_miku.nico_listwin ) g_miku.nico_listwin->setNicoNamaAlert( g_miku.nico_alert );
 		std::string str;
 		wstrtostr( g_config.nico_matchkeyword, str );
+
+		g_miku.nico_alert->setDefaultSound( g_config.nico_notify_sound );
 		g_miku.nico_alert->setMatchKeyword( str );
 		g_miku.nico_alert->SetRandomPickup( g_miku.cmdline.find( L"/randompickup", 0 )!=std::wstring::npos?true:false );
 		SetTaskTrayBalloonMessage( GetStringFromResource(IDS_NICO_CONNECTED) );
 		dprintf( L"Logged in to Niconama.\n" );
-
-#if 0
-#ifdef DEBUG
-		_CrtMemState s1,s2,s3;
-		_CrtMemCheckpoint( &s1 );
-#endif
-		g_miku.nico_alert->GetAllRSS();
-#ifdef DEBUG
-		_CrtMemCheckpoint( &s2 );
-		if ( _CrtMemDifference( &s3, &s1, &s2) ){
-			_CrtMemDumpStatistics( &s3 );
-		}
-#endif
-#endif
 
 		g_miku.nico_alert->StartThread();
 	}else{

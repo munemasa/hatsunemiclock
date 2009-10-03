@@ -143,6 +143,8 @@
 #define IDC_SELECT                      1072
 #define IDC_EDIT_COMMAND                1073
 #define IDC_EDIT_COMMUNITY_ID           1076
+#define IDC_CHECK1                      1078
+#define IDC_CHK_COPY_CLIPBOARD          1078
 #define ID_BTN_WHATTIMEISITNOW          40009
 #define ID_BTN_ABOUT                    40010
 #define ID_BTN_SETTING                  40011
@@ -174,14 +176,16 @@
 #define ID_MENU_BTN_CREATE_COMMUNITY    40107
 #define ID_0_40108                      40108
 #define ID_MENU_BTN_ADD_COMMUNITYLIST   40109
+#define ID_1_40110                      40110
+#define ID_MENU_BTN_GO_COMMUNITY        40111
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        200
-#define _APS_NEXT_COMMAND_VALUE         40110
-#define _APS_NEXT_CONTROL_VALUE         1078
+#define _APS_NEXT_COMMAND_VALUE         40112
+#define _APS_NEXT_CONTROL_VALUE         1079
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

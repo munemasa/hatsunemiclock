@@ -11,6 +11,7 @@ http://dic.nicovideo.jp/a/%E3%83%8B%E3%82%B3%E7%94%9F%E3%82%A2%E3%83%A9%E3%83%BC
 
 #include "tNetwork.h"
 #include "tXML.h"
+#include "tPlaySound.h"
 #include "tNotifyWindow.h"
 #include "udmessages.h"
 #include "niconamaalert.h"
@@ -116,7 +117,7 @@ bool NicoNamaAlert::hasNoticeType( const std::wstring& communityid )
 }
 bool NicoNamaAlert::hasNoticeType( const std::string& communityid )
 {
-	return m_noticetype.count( communityid );
+	return (bool)m_noticetype.count( communityid );
 }
 
 
@@ -140,7 +141,7 @@ void NicoNamaAlert::ProcessNotify( std::string& str )
 	const std::string& cid        = data[1];
 	const std::string& request_id = data[0];
 
-	int p = (float)rand() / RAND_MAX * 100;
+	int p = (int)((float)rand() / RAND_MAX * 100);
 	if( !isRandomPickup() ) p = 10000;
 
 	// data[1] is Community_ID.
@@ -493,6 +494,21 @@ int NicoNamaAlert::ShowNicoNamaNoticeByBalloon( NicoNamaProgram &program )
 	return 0;
 }
 
+
+/** 1000ミリ秒のウェイトをかけてからURLを開く.
+ * 放送開始通知がきて即URLを開くと、
+ * 反応速すぎて、たまに削除されたか存在しない番組と言われるので。
+ */
+static void __cdecl thDelayedOpenURL(LPVOID v)
+{
+	WCHAR*url = (WCHAR*)v;
+	Sleep(1000);
+	OpenURL( url );
+	free( url );
+	_endthread();
+}
+
+
 /** 自作Windowによって通知する.
  * このメソッドはコメントサーバからの受信スレッドから呼ばれるため、
  * ここで通知ウィンドウを作らずメインスレッドに作らせる。
@@ -509,9 +525,23 @@ int NicoNamaAlert::ShowNicoNamaNoticeByWindow( NicoNamaProgram &program )
 			std::wstring tmp;
 			strtowstr( program.request_id, tmp );
 			url = NICO_LIVE_URL + tmp;
-			OpenURL( url );
+			WCHAR *p = (WCHAR*)calloc( sizeof(WCHAR)*(url.length()+1), 1 );
+			wcscpy( p, url.c_str() );
+			_beginthread( thDelayedOpenURL, 0, p );
+			//OpenURL( url );
 		}
-		if( alert.type & NICO_NOTICETYPE_SOUND ){
+		if( program.playsound && (alert.type & NICO_NOTICETYPE_SOUND) ){
+			tPlaySound( m_defaultsound.c_str() );
+		}
+		if( alert.type & NICO_NOTICETYPE_CLIPBOARD ){
+			HGLOBAL hGlobal = GlobalAlloc( GHND|GMEM_SHARE, program.request_id.length()+1 );
+			char*p = (char*)GlobalLock( hGlobal );
+			strcpy( p, program.request_id.c_str() );
+			GlobalUnlock( hGlobal );
+			OpenClipboard( NULL );
+			EmptyClipboard();
+			SetClipboardData( CF_TEXT, hGlobal );
+			CloseClipboard();
 		}
 		if( alert.type & NICO_NOTICETYPE_EXEC ){
 			std::wstring wstr;
@@ -1109,6 +1139,25 @@ int NicoNamaAlert::NotifyKeywordMatch()
 	}
 	m_announcedlist.remove( "X" );
 	return 0;
+}
+
+void NicoNamaAlert::GoCommunity( const std::string& cid )
+{
+	std::wstring wstr;
+	strtowstr( cid, wstr );
+	return GoCommunity( wstr );
+}
+void NicoNamaAlert::GoCommunity( const std::wstring& cid )
+{
+	std::wstring url;
+	if( cid.find(L"ch")!=std::wstring::npos ){
+		// channel
+		url = NICO_CHANNEL_URL + cid;
+	}else{
+		// community
+		url = NICO_COMMUNITY_URL + cid;
+	}
+	OpenURL( url );
 }
 
 NicoNamaAlert::NicoNamaAlert( HINSTANCE hinst, HWND hwnd )

@@ -2,7 +2,6 @@
 #include <gdiplus.h>
 
 #include "tNotifyWindow.h"
-#include "tPlaySound.h"
 #include "udmessages.h"
 
 #include "misc.h"
@@ -243,7 +242,6 @@ tNotifyWindow::tNotifyWindow( HINSTANCE hinst, HWND parent )
 	dragStartX = 0;
 	dragStartY = 0;
 
-	m_soundfilename = L"nc11846.mp3";
 	m_bitmap = NULL;
 	m_hBitmap = NULL;
 	m_parenthwnd = parent;
@@ -361,10 +359,6 @@ tNotifyWindow::~tNotifyWindow()
  */
 void tNotifyWindow::Show( bool playsound, int posx, int posy )
 {
-	if( playsound ){
-		tPlaySound( m_soundfilename.c_str() );
-		m_playsound = playsound;
-	}
 	if( posx>=0 && posy>=0 ){
 		SetWindowPos( m_hwnd, HWND_TOP, posx, posy, 0, 0, SWP_SHOWWINDOW | SWP_NOSIZE | SWP_NOACTIVATE );
 	}else{

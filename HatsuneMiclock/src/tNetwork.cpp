@@ -7,7 +7,7 @@
 #pragma comment(lib,"ws2_32.lib")
 #pragma comment(lib,"winhttp.lib")
 
-#define HTTP_USER_AGENT		L"HatsuneMiclock/1.0"
+#define HTTP_USER_AGENT		L"HatsuneMiclock/1.1"
 
 // http‚ÅŽæ“¾‚µ‚½ƒtƒ@ƒCƒ‹‚ðD:\test-XXXX.txt‚É•Û‘¶‚·‚é.
 //#define HTTP_STORE_FILE

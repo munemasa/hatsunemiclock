@@ -46,17 +46,12 @@ HWND myCreateWindowEx( DWORD dwExStyle, WCHAR*classname, WCHAR*caption, DWORD dw
 		                   x, y, w, h, parent, NULL, NULL, NULL );
 }
 
-void OpenURL( std::wstring &url )
+void OpenURL( const std::wstring &url )
 {
-	HINSTANCE r = ShellExecute(NULL, NULL, url.c_str(), NULL, NULL, SW_SHOWNORMAL);
-	if( (int)r<=32 ){
-		// Ž¸”s‚µ‚½‚Æ‚«‚Íexplorer‚Å.
-		dprintf( L"ShellExecute: %d\n", (int)r );
-		r = ShellExecute(NULL, L"open", L"explorer", url.c_str(), NULL, SW_SHOWNORMAL );
-	}
+	OpenURL( url.c_str() );
 }
 
-void OpenURL( WCHAR*url )
+void OpenURL( const WCHAR*url )
 {
 	HINSTANCE r = ShellExecute(NULL, NULL, url, NULL, NULL, SW_SHOWNORMAL);
 	if( (int)r<=32 ){
