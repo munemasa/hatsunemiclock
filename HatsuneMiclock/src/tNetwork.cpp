@@ -7,7 +7,7 @@
 #pragma comment(lib,"ws2_32.lib")
 #pragma comment(lib,"winhttp.lib")
 
-#define HTTP_USER_AGENT		L"HatsuneMiclock/1.1"
+#define HTTP_USER_AGENT		L"HatsuneMiclock/1.2"
 
 // http‚Åæ“¾‚µ‚½ƒtƒ@ƒCƒ‹‚ğD:\test-XXXX.txt‚É•Û‘¶‚·‚é.
 //#define HTTP_STORE_FILE
@@ -125,7 +125,7 @@ int tHttp::request( const WCHAR*url, char**data, DWORD*datalen, const char*postd
                               0);
 	if( m_hSession==NULL ) return -1;
 
-	WinHttpSetTimeouts( m_hSession, 15*1000 /*DNS*/, 15*1000 /*Connect*/, 15*1000 /*Send*/, 15*1000 /*Recv*/ );
+	WinHttpSetTimeouts( m_hSession, 10*1000 /*DNS*/, 15*1000 /*Connect*/, 10*1000 /*Send*/, 10*1000 /*Recv*/ );
 
 	// URL‰ğÍ.
 	ZeroMemory( &m_urlcomp, sizeof(m_urlcomp) );

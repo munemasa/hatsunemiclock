@@ -220,7 +220,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock1.1\$(ProjectName).exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock1.2\$(ProjectName).exe"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;;&quot;D:\sources\pcre-7.9-src\lib\x86&quot;"
 				IgnoreDefaultLibraryNames=""
@@ -302,7 +302,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock1.1\$(ProjectName)64.exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock1.2\$(ProjectName)64.exe"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;;&quot;D:\sources\pcre-7.9-src\lib\x64&quot;"
 				IgnoreDefaultLibraryNames=""
@@ -345,14 +345,6 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\src\debug.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\src\misc.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\src\niconamaalert.cpp"
 				>
 			</File>
@@ -373,10 +365,6 @@
 				>
 			</File>
 			<File
-				RelativePath=".\src\tXML.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\src\winmain.cpp"
 				>
 			</File>
@@ -387,15 +375,7 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
-				RelativePath=".\src\debug.h"
-				>
-			</File>
-			<File
 				RelativePath=".\src\define.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\misc.h"
 				>
 			</File>
 			<File
@@ -424,10 +404,6 @@
 			</File>
 			<File
 				RelativePath=".\src\tPlaySound.h"
-				>
-			</File>
-			<File
-				RelativePath=".\src\tXML.h"
 				>
 			</File>
 			<File

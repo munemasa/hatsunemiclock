@@ -709,6 +709,11 @@ void tListWindow::InitColumn()
 	column.pszText = L"カテゴリ";
 	column.iSubItem = 4;
 	ListView_InsertColumn( m_listview, 4, &column );
+
+	column.pszText = L"限定";
+	column.iSubItem = 5;
+	column.cx       = 50;
+	ListView_InsertColumn( m_listview, 5, &column );
 }
 
 
@@ -814,6 +819,13 @@ void tListWindow::InsertItem( int i, NicoNamaRSSProgram& prog )
 	item.pszText	= (LPWSTR)wstr.c_str();
 	item.iSubItem	= 4;
 	ListView_SetItem( m_listview, &item );
+
+	// コミュ限定.
+	if( prog.member_only ){
+		item.pszText	= L"限";
+		item.iSubItem	= 5;
+		ListView_SetItem( m_listview, &item );
+	}
 }
 
 // リストビューに項目を設定する.

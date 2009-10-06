@@ -6,7 +6,6 @@
 
 #include "debug.h"
 
-static bool isplayed = false;
 
 static void wrapper_for_destructor(LPVOID v)
 {
