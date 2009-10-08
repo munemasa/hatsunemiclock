@@ -34,6 +34,8 @@ class tListWindow {
 	std::vector<NicoNamaRSSProgram>	m_rssprog;
 	std::vector<NicoNamaRSSProgram> m_filteredlist;
 
+	bool		m_byCategory;
+
 	void InitColumn();
 	void InsertItem( int i, NicoNamaRSSProgram& prog );
 
@@ -49,8 +51,9 @@ public:
 	inline NicoNamaAlert* getNicoNamaAlert(){ return m_nico; }
 	inline void setNicoNamaAlert( NicoNamaAlert*n ){ m_nico = n; }
 
-	void SetFilter( std::string filter );
+	void SetFilter( std::string filter, bool force=false );
 	void SetBoadcastingList( std::map<std::string,NicoNamaRSSProgram>& rssprog );
+	void DisplayByCategory( bool bycategory );
 	void ShowContextMenu( int index );
 	void GoPage( int col, int type );
 	void AddCommunityList( int col );

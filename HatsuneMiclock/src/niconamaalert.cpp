@@ -34,6 +34,21 @@ http://dic.nicovideo.jp/a/%E3%83%8B%E3%82%B3%E7%94%9F%E3%82%A2%E3%83%A9%E3%83%BC
 int GetBroadcastingInfo( const std::string& str, NicoNamaProgram &program );
 int GetBroadcastingInfoFromRSS( xmlNodePtr item, NicoNamaRSSProgram &program );
 
+const std::wstring NicoNamaAlert::g_categoryname[NICONAMA_MAX_CATEGORY] = {
+	L"ˆê”Ê(‚»‚Ì‘¼)",
+	L"“®‰æÐ‰îEƒŠƒNƒGƒXƒg",
+	L"ƒQ[ƒ€ŽÀ‹µ",
+	L"uÀ",
+	L"‰Ì‚Á‚Ä‚Ý‚½",
+	L"‰‰‘t‚µ‚Ä‚Ý‚½",
+	L"—x‚Á‚Ä‚Ý‚½",
+	L"“®•¨",
+	L"—¿—",
+	L"­Ž¡",
+	L"R18"
+};
+
+
 
 static wchar_t *g_rsslist[NICONAMA_MAX_RSS] = {
 	NICONAMA_COMMON_RSS,
@@ -384,6 +399,15 @@ int GetBroadcastingInfoFromRSS( xmlNodePtr item, NicoNamaRSSProgram &program )
 		}else if( strcmp( (char*)node->name, "category" )==0 ){
 			if( !program.category.length() ){
 				program.category = get_textcontent( node );
+
+				std::wstring tmp;
+				strtowstr( program.category, tmp );
+				program.category_id = 0;
+				for(int i=0;i<NICONAMA_MAX_CATEGORY;i++){
+					if( tmp==NicoNamaAlert::g_categoryname[i] ){
+						program.category_id = i;
+					}
+				}
 			}
 
 		}else if( strcmp( (char*)node->name, "thumbnail" )==0 ){

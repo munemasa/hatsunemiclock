@@ -19,6 +19,9 @@
 //----------------------------------------------------------------------
 // macros & defines
 //----------------------------------------------------------------------
+#define NICONAMA_MAX_CATEGORY	11		///< カテゴリの総数.
+
+
 enum NICO_NOTICETYPE {
 	NICO_NOTICETYPE_NONE		= 0x00000000,
 	NICO_NOTICETYPE_WINDOW		= 0x00000001,		// open window(今は常時有効)
@@ -123,6 +126,7 @@ struct NicoNamaRSSProgram {
 	std::string		guid;			// lvXXXX
 	std::string		description;	// 説明
 	std::string		category;		// 動画紹介・リクエストとか一般(その他)とか.
+	int				category_id;
 	std::string		thumbnail;		// サムネのURL
 	std::string		community_name;	// コミュ名.
 	std::string		community_id;	// coXXXX
@@ -133,7 +137,7 @@ struct NicoNamaRSSProgram {
 	int				type;			// 0:unknown 1:community 2:official 3:あと何があるんだろう.
 	time_t			pubDate;
 
-	NicoNamaRSSProgram(){ pubDate = 0; }
+	NicoNamaRSSProgram(){ pubDate = 0; category_id = NICONAMA_MAX_CATEGORY; }
 };
 
 
@@ -157,6 +161,8 @@ public:
 		NNA_WINDOW,		// CreateWindowで作るウィンドウ.
 		NNA_MAX,
 	};
+
+	static const std::wstring g_categoryname[NICONAMA_MAX_CATEGORY];
 
 private:
 	HINSTANCE		m_hinst;

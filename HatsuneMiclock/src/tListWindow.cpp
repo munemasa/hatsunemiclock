@@ -642,17 +642,21 @@ static LRESULT OnMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		// カテゴリで分けて表示.
 		HMENU menu = GetMenu( hWnd );
 		MENUITEMINFO info;
+		bool b;
 		info.cbSize = sizeof(info);
 		info.fMask = MIIM_STATE;
 		GetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
 		if( info.fState == MFS_CHECKED ){
 			info.fState = MFS_UNCHECKED;
 			SetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
+			b = false;
 		}else{
 			info.fState = MFS_CHECKED;
 			SetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
+			b = true;
 		}
 		DrawMenuBar( hWnd );
+		listwin->DisplayByCategory( b );
 		break;}
 
 	case ID_MENU_BTN_DEBUG:
@@ -766,6 +770,8 @@ tListWindow::tListWindow( HINSTANCE hinst, HWND parent )
 {
 	LoadFilteringKeyword();
 
+	m_byCategory = false;
+
 	m_nico = NULL;
 	m_searchdialog = NULL;
 
@@ -802,13 +808,38 @@ tListWindow::tListWindow( HINSTANCE hinst, HWND parent )
 	ListView_SetExtendedListViewStyle( m_listview, dwExStyle );
 
 	SETWINDOWTHEME( m_listview, L"explorer", NULL );
-
+#if 1
+	ListView_EnableGroupView( m_listview, m_byCategory?TRUE:FALSE );
+	for(int i=0;i<11;i++){
+		LVGROUP group;
+		ZeroMemory( &group, sizeof(group) );
+		group.cbSize = sizeof(group);//LVGROUP_V5_SIZE;//sizeof(group);
+		group.mask = LVGF_HEADER | LVGF_GROUPID | LVGF_STATE;
+		group.state = Is_Vista_or_Later() ? LVGS_COLLAPSIBLE : LVGS_NORMAL;
+		group.uAlign = LVGA_HEADER_LEFT;
+		group.pszHeader = (LPWSTR)NicoNamaAlert::g_categoryname[i].c_str();
+		group.cchHeader = NicoNamaAlert::g_categoryname[i].length();
+		group.iGroupId = i;
+		ListView_InsertGroup( m_listview, -1, &group);
+	}
+	LVGROUP group;
+	ZeroMemory( &group, sizeof(group) );
+	group.cbSize = sizeof(group);//LVGROUP_V5_SIZE;//sizeof(group);
+	group.mask = LVGF_HEADER | LVGF_GROUPID | LVGF_STATE;
+	group.state = Is_Vista_or_Later() ? LVGS_COLLAPSIBLE : LVGS_NORMAL;
+	group.uAlign = LVGA_HEADER_LEFT;
+	group.pszHeader = (LPWSTR)L"-";
+	group.cchHeader = 1;
+	group.iGroupId = NICONAMA_MAX_CATEGORY;
+	ListView_InsertGroup( m_listview, -1, &group);
+#endif
 	InitColumn();
 
-	for(int i=0;i<10;i++){
+	for(int i=0;i<=NICONAMA_MAX_CATEGORY;i++){
 		NicoNamaRSSProgram prog;
 		std::wstring wbuf = L"現Ver.はニコ生のサーバに接続しないと何も機能しません。";
 		wstrtostr( wbuf, prog.title );
+		prog.category_id = i;
 		InsertItem( i, prog );
 	}
 
@@ -817,13 +848,14 @@ tListWindow::tListWindow( HINSTANCE hinst, HWND parent )
 
 static bool sort_pubdate_ascending_order(const NicoNamaRSSProgram& left, const NicoNamaRSSProgram& right)
 {
-  return left.pubDate > right.pubDate;
+	return left.pubDate < right.pubDate;
 }
 
 static bool sort_pubdate_descending_order(const NicoNamaRSSProgram& left, const NicoNamaRSSProgram& right)
 {
-  return left.pubDate < right.pubDate;
+	return left.pubDate > right.pubDate;
 }
+
 
 void tListWindow::InsertItem( int i, NicoNamaRSSProgram& prog )
 {
@@ -833,7 +865,8 @@ void tListWindow::InsertItem( int i, NicoNamaRSSProgram& prog )
 	std::wstring wstr;
 
 	// タイトル.
-	item.mask		= LVIF_TEXT;
+	item.mask		= LVIF_TEXT | LVIF_GROUPID;
+	item.iGroupId   = prog.category_id;
 	item.iItem		= i;
 	strtowstr( prog.title, wstr );
 	item.pszText	= (LPWSTR)wstr.c_str();
@@ -841,6 +874,7 @@ void tListWindow::InsertItem( int i, NicoNamaRSSProgram& prog )
 	ListView_InsertItem( m_listview, &item );
 
 	// コミュニティ.
+	item.mask		= LVIF_TEXT;
 	strtowstr( prog.community_name, wstr );
 	item.pszText	= (LPWSTR)wstr.c_str();
 	item.iSubItem	= 1;
@@ -875,6 +909,13 @@ void tListWindow::InsertItem( int i, NicoNamaRSSProgram& prog )
 	}
 }
 
+void tListWindow::DisplayByCategory( bool bycategory )
+{
+	m_byCategory = bycategory;
+	ListView_EnableGroupView( m_listview, m_byCategory?TRUE:FALSE );
+}
+
+
 // リストビューに項目を設定する.
 void tListWindow::SetBoadcastingList( std::map<std::string,NicoNamaRSSProgram>& rssprog )
 {
@@ -885,18 +926,17 @@ void tListWindow::SetBoadcastingList( std::map<std::string,NicoNamaRSSProgram>& 
 			m_rssprog.push_back( (*it).second );
 		}
 	}
-	std::sort( m_rssprog.begin(), m_rssprog.end(), sort_pubdate_ascending_order );
-
+	std::sort( m_rssprog.begin(), m_rssprog.end(), sort_pubdate_descending_order );
 	SetFilter( g_utf8_filteringpattern );
 }
 
 /** フィルタリングをかける.
  * @param filter フィルタリングルール(正規表現) 破壊されるので参照渡しはなしで.
  */
-void tListWindow::SetFilter( std::string filter )
+void tListWindow::SetFilter( std::string filter, bool force )
 {
 	int i=0;
-	if( g_old_filter==filter ){
+	if( !force && g_old_filter==filter ){
 		dprintf( L"フィルタリングルールが変わってないので何もしない\n" );
 		return;
 	}

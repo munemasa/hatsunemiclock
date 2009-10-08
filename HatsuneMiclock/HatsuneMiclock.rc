@@ -179,7 +179,7 @@ BEGIN
         MENUITEM "通知コミュニティ...(&C)",             ID_MENU_BTN_COMMUNITY
         MENUITEM "キーワード通知...(&K)",              ID_MENU_BTN_NOTICE
         MENUITEM SEPARATOR
-        MENUITEM "カテゴリで分けて表示(&P)",              ID_MEMU_BTN_VIEWGROUP, INACTIVE
+        MENUITEM "カテゴリで分けて表示(&P)",              ID_MEMU_BTN_VIEWGROUP
         MENUITEM "デバッグ",                        ID_MENU_BTN_DEBUG, GRAYED
     END
 END
@@ -191,7 +191,6 @@ BEGIN
         MENUITEM "生放送のページに行く",                  ID_BTN_GO_BORADCASTING
         MENUITEM "コミュニティのページに行く",               ID_BTN_GO_COMMUNITY
         MENUITEM SEPARATOR
-        MENUITEM "カテゴリで分けて表示",                  ID_MEMU_BTN_VIEWGROUP
         MENUITEM "通知対象にする",                     ID_MENU_BTN_ADD_COMMUNITYLIST
     END
     POPUP "1"
