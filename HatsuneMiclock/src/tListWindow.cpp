@@ -1,4 +1,6 @@
 #include "winheader.h"
+#include <uxtheme.h>
+
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -16,6 +18,13 @@
 
 #include "myregexp.h"
 
+static HMODULE g_uxtheme = NULL;
+
+typedef HRESULT (__stdcall *LPSETWINDOWTHEME)(HWND,LPCWSTR,LPCWSTR);
+static LPSETWINDOWTHEME SetWindowTheme_ = NULL;
+#define SETWINDOWTHEME(x,y,z)	{ if(SetWindowTheme_)SetWindowTheme_(x,y,z); }
+
+
 
 static WNDPROC	g_oldlistviewwndproc;
 
@@ -24,6 +33,24 @@ static std::string g_utf8_filteringpattern = "";
 static std::string g_community_id = "";
 
 static HWND g_listwindow_hwnd;
+
+
+
+static struct _dmy {
+	_dmy(){
+		g_uxtheme = LoadLibrary(L"uxtheme.dll");
+		if( g_uxtheme ){
+			SetWindowTheme_ = (LPSETWINDOWTHEME)GetProcAddress( g_uxtheme, "SetWindowTheme" );
+		}
+	}
+	~_dmy(){
+		if( g_uxtheme ){
+			FreeLibrary( g_uxtheme );
+		}
+	}
+}g_dmy;
+
+
 
 /** キーワードをレジストリに保存する.
  */
@@ -364,6 +391,7 @@ static void InitCommunityDialog(HWND hDlgWnd)
 	h = GetDlgItem( hDlgWnd, IDC_COMMUNITY_LIST );
 	ListView_SetExtendedListViewStyle( h, LVS_SINGLESEL );
 	ListView_SetExtendedListViewStyle( h, LVS_EX_FULLROWSELECT|LVS_EX_FLATSB|LVS_EX_DOUBLEBUFFER|LVS_EX_INFOTIP|LVS_EX_CHECKBOXES );
+	SETWINDOWTHEME( h, L"explorer", NULL );
 
 	LV_COLUMN column;
 	ZeroMemory( &column, sizeof(column) );
@@ -610,6 +638,23 @@ static LRESULT OnMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		listwin->AddCommunityList( col );
 		break;
 
+	case ID_MEMU_BTN_VIEWGROUP:{
+		// カテゴリで分けて表示.
+		HMENU menu = GetMenu( hWnd );
+		MENUITEMINFO info;
+		info.cbSize = sizeof(info);
+		info.fMask = MIIM_STATE;
+		GetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
+		if( info.fState == MFS_CHECKED ){
+			info.fState = MFS_UNCHECKED;
+			SetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
+		}else{
+			info.fState = MFS_CHECKED;
+			SetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
+		}
+		DrawMenuBar( hWnd );
+		break;}
+
 	case ID_MENU_BTN_DEBUG:
         // for debug
 		listwin->SetBoadcastingList( listwin->getNicoNamaAlert()->getRSSProgram() );
@@ -698,7 +743,7 @@ void tListWindow::InitColumn()
 	column.cx       = 100;
 	ListView_InsertColumn( m_listview, 1, &column );
 
-	column.pszText	= L"放送主";
+	column.pszText	= L"放送者";
 	column.iSubItem = 2;
 	ListView_InsertColumn( m_listview, 2, &column );
 
@@ -755,6 +800,8 @@ tListWindow::tListWindow( HINSTANCE hinst, HWND parent )
 
 	dwExStyle = LVS_EX_FULLROWSELECT|LVS_EX_HEADERDRAGDROP|LVS_EX_FLATSB|LVS_EX_DOUBLEBUFFER|LVS_EX_INFOTIP;
 	ListView_SetExtendedListViewStyle( m_listview, dwExStyle );
+
+	SETWINDOWTHEME( m_listview, L"explorer", NULL );
 
 	InitColumn();
 

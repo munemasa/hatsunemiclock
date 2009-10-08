@@ -591,6 +591,9 @@ void NicoNamaAlert::ShowNextNoticeWindow()
  */
 void NicoNamaAlert::AddNoticeQueue( NicoNamaProgram &program, bool nostack )
 {
+	dprintf(L"AddNoticeQueue:%S\n",program.request_id.c_str() );
+	if( isAlreadyAnnounced( program.request_id ) ) return;
+
 	bool b = false;
 	if( this->m_displaytype==this->NNA_BALLOON ){
 		// バルーンタイプのときは即時でいいや.
@@ -621,6 +624,7 @@ void NicoNamaAlert::AddNoticeQueue( NicoNamaProgram &program, bool nostack )
 			m_recent_commu_prog.push_back( program );
 		}
 		m_recent_program.push_back( program );
+		m_announcedlist.push_back( program.request_id );
 	}
 	if( m_recent_program.size() > NICO_MAX_RECENT_PROGRAM ){
 		m_recent_program.pop_front();
@@ -1105,8 +1109,6 @@ int NicoNamaAlert::NotifyKeywordMatch()
 				if( isParticipant( wstr_commuid ) ) continue;	// 参加コミュは通知対象外.
 				if( hasNoticeType( wstr_commuid ) ) continue;	// 通知リスト登録済みのものも対象外.
 				if( isAlreadyAnnounced( p.guid ) ) continue;	// すでに通知したものも対象外.
-
-				m_announcedlist.push_back( p.guid );
 
 				prog.community		= p.community_id;
                 prog.community_name = p.community_name;

@@ -772,10 +772,6 @@
 				RelativePath="..\..\..\miku\miku_bonus_files\miku_sd.bmp"
 				>
 			</File>
-			<File
-				RelativePath="..\..\..\miku\miku_bonus_files\wave1.bin"
-				>
-			</File>
 		</Filter>
 	</Files>
 	<Globals>
