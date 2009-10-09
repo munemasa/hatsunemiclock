@@ -188,10 +188,11 @@ IDR_LISTWINDOW_CONTEXTMENU MENU
 BEGIN
     POPUP "0"
     BEGIN
-        MENUITEM "生放送のページに行く",                  ID_BTN_GO_BORADCASTING
-        MENUITEM "コミュニティのページに行く",               ID_BTN_GO_COMMUNITY
+        MENUITEM "生放送のページに行く(&B)",              ID_BTN_GO_BORADCASTING
+        MENUITEM "コミュニティのページに行く(&C)",           ID_BTN_GO_COMMUNITY
         MENUITEM SEPARATOR
-        MENUITEM "通知対象にする",                     ID_MENU_BTN_ADD_COMMUNITYLIST
+        MENUITEM "カテゴリで分けて表示(&P)",              ID_MEMU_BTN_VIEWGROUP
+        MENUITEM "通知対象にする(&N)",                 ID_MENU_BTN_ADD_COMMUNITYLIST
     END
     POPUP "1"
     BEGIN

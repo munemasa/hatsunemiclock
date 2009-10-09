@@ -57,6 +57,7 @@ public:
 	void ShowContextMenu( int index );
 	void GoPage( int col, int type );
 	void AddCommunityList( int col );
+	void Sort(int column);
 
 	void Show( NicoNamaAlert*nico );
 	void Hide();

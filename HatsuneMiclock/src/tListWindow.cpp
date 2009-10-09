@@ -33,7 +33,12 @@ static std::string g_utf8_filteringpattern = "";
 static std::string g_community_id = "";
 
 static HWND g_listwindow_hwnd;
+static HWND g_listview_hwnd;
 
+#define NO_OF_COLUMN		6
+#define ASCEND				1
+#define DESCEND				2
+static int g_sortsubno[NO_OF_COLUMN] = {0};
 
 
 static struct _dmy {
@@ -646,15 +651,9 @@ static LRESULT OnMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		info.cbSize = sizeof(info);
 		info.fMask = MIIM_STATE;
 		GetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
-		if( info.fState == MFS_CHECKED ){
-			info.fState = MFS_UNCHECKED;
-			SetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
-			b = false;
-		}else{
-			info.fState = MFS_CHECKED;
-			SetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
-			b = true;
-		}
+		b = info.fState==MFS_CHECKED ? false : true;
+		info.fState = info.fState==MFS_CHECKED ? MFS_UNCHECKED : MFS_CHECKED;
+		SetMenuItemInfo( menu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
 		DrawMenuBar( hWnd );
 		listwin->DisplayByCategory( b );
 		break;}
@@ -674,12 +673,18 @@ static LRESULT OnNotify( HWND hWnd, WPARAM wParam, LPARAM lParam )
 {
 	int idCtrl = (int)wParam;
 	LPNMHDR pnmh = (LPNMHDR)lParam;
+	tListWindow*listwin = (tListWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
 
 	switch( pnmh->code ){
 	case NM_RCLICK:{
-		LPNMITEMACTIVATE itemact = (LPNMITEMACTIVATE)lParam;
-		tListWindow*listwin = (tListWindow*)GetWindowLongPtr( hWnd, GWLP_USERDATA );
+		LPNMITEMACTIVATE itemact = (LPNMITEMACTIVATE)lParam;		
 		listwin->ShowContextMenu( itemact->iItem );
+		break;}
+
+	case LVN_COLUMNCLICK:{
+		LPNM_LISTVIEW listview = (LPNM_LISTVIEW)lParam; 
+		//ListView_SortItems(hList, MyCompProc, pNMLV->iSubItem);
+		listwin->Sort( listview->iSubItem );
 		break;}
 
 	default:
@@ -857,6 +862,50 @@ static bool sort_pubdate_descending_order(const NicoNamaRSSProgram& left, const 
 }
 
 
+int CALLBACK MyCompProc(LPARAM lp1, LPARAM lp2, LPARAM lp3)
+{
+    LV_FINDINFO lvf;
+    int nItem1, nItem2;
+    WCHAR buf1[4096], buf2[4096];
+
+    lvf.flags = LVFI_PARAM;
+    lvf.lParam = lp1;
+    nItem1 = ListView_FindItem( g_listview_hwnd, -1, &lvf );
+
+    lvf.lParam = lp2;
+    nItem2 = ListView_FindItem( g_listview_hwnd, -1, &lvf );
+    
+	if( lp3==3 /* 開始時刻 */ ){
+		if( g_sortsubno[(int)lp3]==ASCEND ){
+			return nItem1 - nItem2;
+		}else{
+			return (nItem1 - nItem2) * -1;
+		}
+	}else{
+		ListView_GetItemText( g_listview_hwnd, nItem1, (int)lp3, buf1, 4096 );
+		ListView_GetItemText( g_listview_hwnd, nItem2, (int)lp3, buf2, 4096 );
+		if( g_sortsubno[(int)lp3]==ASCEND ){
+			return wcscmp(buf1, buf2);
+		}else{
+			return wcscmp(buf1, buf2) * -1;
+		}
+	}
+}
+
+void tListWindow::Sort( int column )
+{
+	// リストビューのグループ化機能があるし、ソートはいらないかな.
+	return;
+
+	g_listview_hwnd = m_listview;
+	if( g_sortsubno[column]==ASCEND ){
+		g_sortsubno[column] = DESCEND;
+	}else{
+		g_sortsubno[column] = ASCEND;
+	}
+	ListView_SortItems( m_listview, MyCompProc, column );
+}
+
 void tListWindow::InsertItem( int i, NicoNamaRSSProgram& prog )
 {
 	LV_ITEM item;
@@ -865,9 +914,10 @@ void tListWindow::InsertItem( int i, NicoNamaRSSProgram& prog )
 	std::wstring wstr;
 
 	// タイトル.
-	item.mask		= LVIF_TEXT | LVIF_GROUPID;
+	item.mask		= LVIF_TEXT | LVIF_GROUPID | LVIF_PARAM;
 	item.iGroupId   = prog.category_id;
 	item.iItem		= i;
+	item.lParam		= i;
 	strtowstr( prog.title, wstr );
 	item.pszText	= (LPWSTR)wstr.c_str();
 	item.iSubItem	= 0;
@@ -987,6 +1037,14 @@ void tListWindow::ShowContextMenu( int index )
 
     menu = LoadMenu( GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_LISTWINDOW_CONTEXTMENU) );
     submenu = GetSubMenu( menu, 0 ); 
+
+	// カテゴリで分けて表示.
+	MENUITEMINFO info;
+	info.cbSize = sizeof(info);
+	info.fMask = MIIM_STATE;
+	GetMenuItemInfo( GetMenu(m_hwnd), ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
+	info.fState = info.fState==MFS_CHECKED ? MFS_CHECKED : MFS_UNCHECKED;
+	SetMenuItemInfo( submenu, ID_MEMU_BTN_VIEWGROUP, FALSE, &info );
 
     POINT pt;
 	int r;
