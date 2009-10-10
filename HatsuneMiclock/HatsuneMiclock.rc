@@ -192,6 +192,7 @@ BEGIN
         MENUITEM "コミュニティのページに行く(&C)",           ID_BTN_GO_COMMUNITY
         MENUITEM SEPARATOR
         MENUITEM "カテゴリで分けて表示(&P)",              ID_MEMU_BTN_VIEWGROUP
+        MENUITEM SEPARATOR
         MENUITEM "通知対象にする(&N)",                 ID_MENU_BTN_ADD_COMMUNITYLIST
     END
     POPUP "1"
