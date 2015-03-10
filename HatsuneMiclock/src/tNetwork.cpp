@@ -1,13 +1,15 @@
 #include "winheader.h"
 #include "tNetwork.h"
 #include "stringlib.h"
+#include "misc.h"
 
 #include "debug.h"
 
 #pragma comment(lib,"ws2_32.lib")
 #pragma comment(lib,"winhttp.lib")
 
-#define HTTP_USER_AGENT		L"HatsuneMiclock/1.2"
+#define HTTP_USER_AGENT		L"HatsuneMiclock/1.4"
+//#define HTTP_USER_AGENT		L"Mozilla/5.0 (Windows; U; Windows NT 6.0; ja; rv:1.9.2.10) Gecko/20100914 Firefox/3.6.10 GTB7.1 (.NET CLR 3.5.30729) XPCOMViewer/0.9.2"
 
 // httpで取得したファイルをD:\test-XXXX.txtに保存する.
 //#define HTTP_STORE_FILE
@@ -127,6 +129,10 @@ int tHttp::request( const WCHAR*url, char**data, DWORD*datalen, const char*postd
 
 	WinHttpSetTimeouts( m_hSession, 10*1000 /*DNS*/, 15*1000 /*Connect*/, 10*1000 /*Send*/, 10*1000 /*Recv*/ );
 
+	// ニコニコ動画で利用するときTLSv1+AESだとWinHTTPではエラーになるので.
+	DWORD param = WINHTTP_FLAG_SECURE_PROTOCOL_SSL3;
+	WinHttpSetOption( m_hSession, WINHTTP_OPTION_SECURE_PROTOCOLS, &param, sizeof(param) );
+
 	// URL解析.
 	ZeroMemory( &m_urlcomp, sizeof(m_urlcomp) );
 	m_urlcomp.dwStructSize = sizeof(m_urlcomp);
@@ -182,12 +188,16 @@ int tHttp::request( const WCHAR*url, char**data, DWORD*datalen, const char*postd
 							postlen,							// dwTotalLength
 							0);									// dwContext
 	if( !b ){
+		DWORD err = GetLastError();
+		dprintf(L"%d\n",err); // 12030
 		r = -1; goto end;
 	}
 
 	// receive
 	b = WinHttpReceiveResponse( m_hRequest, NULL);
 	if( !b ){
+		DWORD err = GetLastError();
+		dprintf(L"%d\n",err);
 		r = -1; goto end;
 	}
 

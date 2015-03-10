@@ -13,13 +13,11 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// 日本語 resources
+// 日本語 (日本) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_JPN)
-#ifdef _WIN32
 LANGUAGE LANG_JAPANESE, SUBLANG_DEFAULT
 #pragma code_page(932)
-#endif //_WIN32
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -54,6 +52,7 @@ END
 
 IDB_MIKUBMP             BITMAP                  "D:\\miku\\miku_bonus_files\\miku_sd.bmp"
 IDB_BOARD               BITMAP                  "D:\\miku\\miku_bonus_files\\clockboard.bmp"
+IDB_YUKARI              BITMAP                  "D:\\sources\\HatsuneMiclock\\yukari.bmp"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -151,7 +150,7 @@ IDR_3MIN_PROGRESS       WAVE                    "D:\\miku\\clock\\3minprogress.w
 // Menu
 //
 
-IDR_CONTEXTMENU MENU 
+IDR_CONTEXTMENU MENU
 BEGIN
     POPUP "0"
     BEGIN
@@ -171,7 +170,7 @@ BEGIN
     END
 END
 
-IDR_LISTWINDOWMENU MENU 
+IDR_LISTWINDOWMENU MENU
 BEGIN
     MENUITEM "!フィルタ(&F)",                   ID_MENU_BTN_FILTER
     POPUP "設定(&S)"
@@ -184,12 +183,13 @@ BEGIN
     END
 END
 
-IDR_LISTWINDOW_CONTEXTMENU MENU 
+IDR_LISTWINDOW_CONTEXTMENU MENU
 BEGIN
     POPUP "0"
     BEGIN
         MENUITEM "生放送のページに行く(&B)",              ID_BTN_GO_BORADCASTING
         MENUITEM "コミュニティのページに行く(&C)",           ID_BTN_GO_COMMUNITY
+        MENUITEM "生放送ページのURLをコピー",              ID_MENU_BTN_COPY_LIVEURL
         MENUITEM SEPARATOR
         MENUITEM "カテゴリで分けて表示(&P)",              ID_MEMU_BTN_VIEWGROUP
         MENUITEM SEPARATOR
@@ -212,7 +212,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO 
+GUIDELINES DESIGNINFO
 BEGIN
     IDD_ABOUT_DIALOG, DIALOG
     BEGIN
@@ -238,7 +238,7 @@ CAPTION "バージョン情報"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
     DEFPUSHBUTTON   "OK",IDYES,86,112,41,20
-    LTEXT           "初音ミクロック (Hatsune Miclock) Version 1.2",IDC_STATIC,20,17,126,8
+    LTEXT           "初音ミクロック (Hatsune Miclock) Version 1.4",IDC_STATIC,20,17,126,8
     LTEXT           "Programmed by あまの",IDC_STATIC,20,33,64,8
     LTEXT           "「初音ミク」はクリプトン・フューチャー・メディア株式会社の著作物です。\n(C) Crypton Future Media, Inc.",IDC_STATIC,20,77,185,19
     CONTROL         "<a href=""http://miku39.jp/dists/software/miku/HatsuneMiclock.html"">http://miku39.jp/dists/software/miku/HatsuneMiclock.html</a>",IDC_SYSLINK_WEBPAGE,
@@ -322,7 +322,7 @@ CAPTION "バージョン情報"
 FONT 9, "MS UI Gothic", 400, 0, 0x0
 BEGIN
     DEFPUSHBUTTON   "OK",IDYES,78,82,41,20
-    LTEXT           "初音ミクロック (Hatsune Miclock) Version 1.2",IDC_STATIC,8,14,126,8
+    LTEXT           "初音ミクロック (Hatsune Miclock) Version 1.4",IDC_STATIC,8,14,126,8
     LTEXT           "Programmed by あまの",IDC_STATIC,8,30,64,8
     LTEXT           "「初音ミク」はクリプトン・フューチャー・メディア株式会社の著作物です。\n(C) Crypton Future Media, Inc.",IDC_STATIC,8,52,185,19
 END
@@ -359,8 +359,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,0,0
- PRODUCTVERSION 1,2,0,0
+ FILEVERSION 1,5,0,0
+ PRODUCTVERSION 1,5,0,0
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -377,12 +377,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Miku39.jp"
             VALUE "FileDescription", "初音ミクロック"
-            VALUE "FileVersion", "1, 2, 0, 0"
+            VALUE "FileVersion", "1.5.0.0"
             VALUE "InternalName", "HatsuneMiclock"
             VALUE "LegalCopyright", "Copyright (C) 2009"
             VALUE "OriginalFilename", "HatsuneMiclock.exe"
             VALUE "ProductName", "Hatsune Miclock"
-            VALUE "ProductVersion", "1, 2, 0, 0"
+            VALUE "ProductVersion", "1.5.0.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -406,14 +406,14 @@ IDI_TASKTRAYICON        ICON                    "d:\\miku\\miku_bonus_files\\ico
 // String Table
 //
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_FONT                "System"
     IDS_FONTSIZE            "12"
     IDS_TEXT_XPOSITION      "70"
 END
 
-STRINGTABLE 
+STRINGTABLE
 BEGIN
     IDS_TEXT_YPOSITION      "131"
     IDS_BOARD_XPOSITION     "60"
@@ -431,7 +431,7 @@ BEGIN
     IDS_MENU_NICO_COMMUNITY_PROGRAM "コミュニティの通知履歴"
 END
 
-#endif    // 日本語 resources
+#endif    // 日本語 (日本) resources
 /////////////////////////////////////////////////////////////////////////////
 
 

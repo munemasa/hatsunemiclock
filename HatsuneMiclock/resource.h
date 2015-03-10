@@ -116,6 +116,8 @@
 #define IDS_ERR_CONNECT_FAILED_CAPTION  200
 #define IDS_MENU_TRACKLIST              201
 #define IDS_MENU_NICO_RECENT            202
+#define IDB_BITMAP1                     202
+#define IDB_YUKARI                      202
 #define IDS_NICO_CONNECTED              203
 #define IDS_NICO_PROGRAM_LIST_CAPTION   204
 #define IDS_MENU_NICO_COMMUNITY_PROGRAM 205
@@ -181,13 +183,15 @@
 #define ID_MEMU_BTN_VIEWGROUP           40113
 #define ID_40114                        40114
 #define ID_MENU_BTN_                    40115
+#define ID_0_40116                      40116
+#define ID_MENU_BTN_COPY_LIVEURL        40117
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        200
-#define _APS_NEXT_COMMAND_VALUE         40116
+#define _APS_NEXT_RESOURCE_VALUE        203
+#define _APS_NEXT_COMMAND_VALUE         40118
 #define _APS_NEXT_CONTROL_VALUE         1079
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

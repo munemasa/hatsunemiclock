@@ -631,6 +631,11 @@ static LRESULT OnMenu( HWND hWnd, WPARAM wParam, LPARAM lParam )
 		listwin->GoPage( col, GO_TYPE_BROADCASTING_PAGE );
 		break;
 
+	case ID_MENU_BTN_COPY_LIVEURL:
+		col = ListView_GetNextItem( listwin->getListViewHandle(), -1, LVNI_ALL|LVNI_SELECTED );
+		listwin->CopyLiveURL( col );
+		break;
+
 	case ID_BTN_GO_COMMUNITY:
         // ƒRƒ~ƒ…‚É”ò‚Ô.
 		col = ListView_GetNextItem( listwin->getListViewHandle(), -1, LVNI_ALL|LVNI_SELECTED );
@@ -815,7 +820,7 @@ tListWindow::tListWindow( HINSTANCE hinst, HWND parent )
 	SETWINDOWTHEME( m_listview, L"explorer", NULL );
 #if 1
 	ListView_EnableGroupView( m_listview, m_byCategory?TRUE:FALSE );
-	for(int i=0;i<11;i++){
+	for(int i=0;i<NICONAMA_MAX_CATEGORY;i++){
 		LVGROUP group;
 		ZeroMemory( &group, sizeof(group) );
 		group.cbSize = sizeof(group);//LVGROUP_V5_SIZE;//sizeof(group);
@@ -939,8 +944,13 @@ void tListWindow::InsertItem( int i, NicoNamaRSSProgram& prog )
 	// Žž.
 	struct tm tm;
 	WCHAR wbuf[128];
-	localtime_s( &tm, &prog.pubDate );
-	wcsftime( wbuf, 128, L"%H:%M", &tm );
+	wsprintf( wbuf, L"--:--");
+	if( prog.pubDate ){
+		localtime_s( &tm, &prog.pubDate );
+		if( tm.tm_year>0 ){
+			wcsftime( wbuf, 128, L"%H:%M", &tm );
+		}
+	}
 	item.pszText = wbuf;
 	item.iSubItem = 3;
 	ListView_SetItem( m_listview, &item );
@@ -1086,6 +1096,18 @@ void tListWindow::GoPage( int col, int type )
 	default:
 		break;
 	}
+}
+
+void tListWindow::CopyLiveURL(int col)
+{
+	HGLOBAL hGlobal = GlobalAlloc( GHND|GMEM_SHARE, m_filteredlist[col].link.length()+1 );
+	char*p = (char*)GlobalLock( hGlobal );
+	strcpy( p, m_filteredlist[col].link.c_str() );
+	GlobalUnlock( hGlobal );
+	OpenClipboard( NULL );
+	EmptyClipboard();
+	SetClipboardData( CF_TEXT, hGlobal );
+	CloseClipboard();
 }
 
 

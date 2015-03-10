@@ -64,7 +64,6 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="mylibd.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;;&quot;D:\sources\pcre-7.9-src\lib\x86&quot;"
 				IgnoreDefaultLibraryNames="libcmt.lib"
@@ -141,7 +140,6 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="mylibd.lib"
 				LinkIncremental="2"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;;&quot;D:\sources\pcre-7.9-src\lib\x64&quot;"
 				IgnoreDefaultLibraryNames="libcmt.lib"
@@ -219,8 +217,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock1.2\$(ProjectName).exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock1.3\$(ProjectName).exe"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x86;&quot;D:\sources\libxml2-2.7.3\lib\x86&quot;;&quot;D:\sources\pcre-7.9-src\lib\x86&quot;"
 				IgnoreDefaultLibraryNames=""
@@ -301,8 +298,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="mylib.lib"
-				OutputFile="$(SolutionDir)\archive\HatsuneMiclock1.2\$(ProjectName)64.exe"
+				OutputFile="$(SolutionDir)\archive\HatsuneMiclock1.3\$(ProjectName)64.exe"
 				LinkIncremental="1"
 				AdditionalLibraryDirectories="D:\sources\mylib\lib\x64;&quot;D:\sources\libxml2-2.7.3\lib\x64&quot;;&quot;D:\sources\pcre-7.9-src\lib\x64&quot;"
 				IgnoreDefaultLibraryNames=""
@@ -345,7 +341,19 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\src\debug.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\misc.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\niconamaalert.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\stringlib.cpp"
 				>
 			</File>
 			<File
@@ -365,6 +373,14 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\tWindow.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tXML.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\src\winmain.cpp"
 				>
 			</File>
@@ -375,7 +391,15 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\src\debug.h"
+				>
+			</File>
+			<File
 				RelativePath=".\src\define.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\misc.h"
 				>
 			</File>
 			<File
@@ -388,6 +412,10 @@
 			</File>
 			<File
 				RelativePath=".\resource.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\stringlib.h"
 				>
 			</File>
 			<File
@@ -407,7 +435,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\src\tWindow.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\tXML.h"
+				>
+			</File>
+			<File
 				RelativePath=".\src\udmessages.h"
+				>
+			</File>
+			<File
+				RelativePath=".\src\winheader.h"
 				>
 			</File>
 		</Filter>
@@ -753,6 +793,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\miku\miku_bonus_files\bitmap1.bmp"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\miku\miku_bonus_files\clockboard.bmp"
 				>
 			</File>
@@ -770,6 +814,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\miku\miku_bonus_files\miku_sd.bmp"
+				>
+			</File>
+			<File
+				RelativePath="..\yukari.bmp"
 				>
 			</File>
 		</Filter>

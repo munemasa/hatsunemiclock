@@ -1,6 +1,7 @@
 #include "winheader.h"
 #include <gdiplus.h>
 
+
 #include "tNotifyWindow.h"
 #include "udmessages.h"
 

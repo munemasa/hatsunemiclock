@@ -19,7 +19,7 @@
 //----------------------------------------------------------------------
 // macros & defines
 //----------------------------------------------------------------------
-#define NICONAMA_MAX_CATEGORY	11		///< カテゴリの総数.
+#define NICONAMA_MAX_CATEGORY	12		///< カテゴリの総数.
 
 
 enum NICO_NOTICETYPE {
@@ -42,7 +42,9 @@ enum NICO_NOTICETYPE {
 #define NICONAMA_MAX_RSS		(6)
 
 #define NICONAMA_LOGIN1			L"https://secure.nicovideo.jp/secure/login?site=nicolive_antenna"
+//#define NICONAMA_LOGIN1			L"https://www.verisign.co.jp/"
 #define NICONAMA_LOGIN2			L"http://live.nicovideo.jp/api/getalertstatus"
+#define NICONAMA_ANON_LOGIN		L"http://live.nicovideo.jp/api/getalertinfo"
 #define NICONAMA_GETINFO		L"http://live.nicovideo.jp/api/getstreaminfo/lv"
 
 
@@ -62,6 +64,7 @@ struct NicoNamaProgram {
 	std::string		request_id;		///< lvXXXXXXX
 	std::string		title;
 	std::string		description;
+	std::string     caster_id;  ///< 放送主のユーザID.
 
 	std::string		community;		///< coXXXX, chXXXX
 	std::string		community_name;
@@ -256,6 +259,7 @@ public:
 	int KeepAlive();
 	int Receive( std::string &str );
 	void DoReceive();
+	void ReConnect();
 
 	bool isParticipant( const std::string& str );
 	bool isParticipant( const std::wstring&communityid );

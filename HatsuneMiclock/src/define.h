@@ -13,7 +13,7 @@
 
 #define TIMER_3MIN		(3)	// 3分タイマーの時間(分)
 
-#define	NICO_COMMUNITY_URL	L"http://ch.nicovideo.jp/community/"
+#define	NICO_COMMUNITY_URL	L"http://com.nicovideo.jp/community/"
 #define NICO_CHANNEL_URL	L"http://ch.nicovideo.jp/channel/"
 #define NICO_LIVE_URL		L"http://live.nicovideo.jp/watch/"
 

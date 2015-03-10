@@ -56,6 +56,7 @@ public:
 	void DisplayByCategory( bool bycategory );
 	void ShowContextMenu( int index );
 	void GoPage( int col, int type );
+	void CopyLiveURL(int col);
 	void AddCommunityList( int col );
 	void Sort(int column);
 

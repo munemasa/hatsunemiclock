@@ -3,10 +3,10 @@
 
 // ユーザー定義ウィンドウメッセージ等.
 #include "winheader.h"
-#include "iTunesLib.h"
+//#include "iTunesLib.h"
 
 enum {
-	WM_TTRAY_POPUP = WM_ITUNES+1,
+	WM_TTRAY_POPUP = WM_USER+1,
 	WM_NNA_NOTIFY,		// wparamにコマンド、lparamにデータ.
 	WM_USER_MAX,
 };
@@ -15,6 +15,7 @@ enum {
 #define NNA_REQUEST_CREATEWINDOW	(1)
 #define NNA_CLOSED_NOTIFYWINDOW		(2)		// 通知ウィンドウが0個になったときに親ウィンドウに通知される.
 #define NNA_UPDATE_RSS				(3)		// RSSが更新されたときに通知される.
+#define NNA_RECONNECT				(4)		// 再接続要求.
 
 
 // WM_TIMERのID
