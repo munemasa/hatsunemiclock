@@ -1,0 +1,7 @@
+メモリリークのない関数を_beginthreadex()でスレッド化して動かした場合
+712 bytes in 1 CRT Blocks.
+0 bytes in 0 Ignore Blocks.
+0 bytes in 0 Client Blocks.
+Largest number used: 1398041 bytes.
+Total allocations: 21515831 bytes.
+
